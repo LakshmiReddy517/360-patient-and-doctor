@@ -1,0 +1,31 @@
+# ---- Build outputs ----
+backend/target/
+**/build/
+**/.gradle/
+android/.gradle/
+android/local.properties
+android/.idea/
+
+# ---- Node / portal ----
+node_modules/
+portal/node_modules/
+portal/dist/
+
+# ---- Runtime / working data ----
+.logs/
+.shots/
+backend/uploads/
+*.log
+
+# ---- Temp / archives / extracts ----
+~$*
+*.zip
+prop_extract/
+
+# ---- Local tooling / IDE / OS ----
+.claude/
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

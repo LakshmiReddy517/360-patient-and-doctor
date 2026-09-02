@@ -1,0 +1,54 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: patient-care-backend
+  datasource:
+    url: jdbc:mysql://localhost:3306/pcare?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: pcare
+    password: pcare_pass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQLDialect
+        format_sql: false
+    show-sql: false
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+  servlet:
+    multipart:
+      max-file-size: 20MB
+      max-request-size: 25MB
+
+# Application-specific configuration
+app:
+  security:
+    jwt:
+      # Dev secret. Override via env APP_SECURITY_JWT_SECRET in production.
+      secret: ${APP_SECURITY_JWT_SECRET:9b7d2f4a6c8e0f1a3b5d7f9012345678a1b2c3d4e5f60718293a4b5c6d7e8f90}
+      access-token-minutes: 120
+      refresh-token-days: 30
+  cors:
+    allowed-origins: http://localhost:5173,http://localhost:3000
+  seed:
+    enabled: true
+  storage:
+    # Document uploads are written here (kept on D: where there is free space).
+    uploads-dir: D:/floder/backend/uploads
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+
+logging:
+  level:
+    org.springframework.security: INFO
+    com.pcare: DEBUG

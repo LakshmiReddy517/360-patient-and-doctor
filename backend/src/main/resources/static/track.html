@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Track my ambulance</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    html, body { margin: 0; height: 100%; font-family: -apple-system, Roboto, "Segoe UI", sans-serif; background: #eef2f8; }
+    #map { position: absolute; top: 0; left: 0; right: 0; bottom: 96px; }
+    #panel { position: absolute; left: 0; right: 0; bottom: 0; height: 96px; background: #fff;
+             box-shadow: 0 -2px 12px rgba(0,0,0,.12); padding: 12px 16px; box-sizing: border-box; }
+    #status { font-weight: 700; color: #0f766e; font-size: 16px; }
+    #eta { color: #64748b; font-size: 13px; margin-top: 2px; }
+    .legend { display: flex; gap: 14px; margin-top: 8px; font-size: 12px; color: #334155; align-items: center; }
+    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: middle; }
+    #live { margin-left: auto; font-size: 11px; font-weight: 700; color: #16a34a; }
+    #live.off { color: #dc2626; }
+    .pin { filter: drop-shadow(0 1px 2px rgba(0,0,0,.4)); }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="panel">
+    <div id="status">Locating your ambulance…</div>
+    <div id="eta"></div>
+    <div class="legend">
+      <span><span class="dot" style="background:#2563eb"></span>Ambulance</span>
+      <span><span class="dot" style="background:#16a34a"></span>Pickup</span>
+      <span><span class="dot" style="background:#dc2626"></span>Hospital</span>
+      <span id="live" class="off">● OFFLINE</span>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    var params = new URLSearchParams(location.search);
+    var caseId = params.get('caseId');
+    var token = params.get('token');
+
+    var map = L.map('map', { zoomControl: true }).setView([12.9716, 77.5946], 12);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }).addTo(map);
+
+    function pin(color, glyph) {
+      return L.divIcon({
+        className: 'pin',
+        html: '<div style="background:' + color + ';width:30px;height:30px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:2px solid #fff;display:flex;align-items:center;justify-content:center">'
+            + '<span style="transform:rotate(45deg);font-size:15px;line-height:1">' + glyph + '</span></div>',
+        iconSize: [30, 30], iconAnchor: [15, 28]
+      });
+    }
+    function haversine(a, b) {
+      var R = 6371, dLat = (b[0]-a[0])*Math.PI/180, dLng = (b[1]-a[1])*Math.PI/180;
+      var s = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(a[0]*Math.PI/180)*Math.cos(b[0]*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2);
+      return R * 2 * Math.atan2(Math.sqrt(s), Math.sqrt(1-s));
+    }
+
+    var state = { driverAgentId: null, pickup: null, destination: null, status: null, driverName: '', routeDrawn: false };
+    var driverMarker = null, routeLine = null, staticDrawn = false, fitted = false;
+
+    async function drawRoad(points) {
+      var coords = points.map(function (p) { return p[1] + ',' + p[0]; }).join(';');
+      var latlngs = points;
+      try {
+        var res = await fetch('https://router.project-osrm.org/route/v1/driving/' + coords + '?overview=full&geometries=geojson');
+        var j = await res.json();
+        var geo = j && j.routes && j.routes[0] && j.routes[0].geometry.coordinates;
+        if (geo) latlngs = geo.map(function (c) { return [c[1], c[0]]; });
+      } catch (e) {}
+      if (routeLine) map.removeLayer(routeLine);
+      routeLine = L.polyline(latlngs, { color: '#2563eb', weight: 5, opacity: 0.7 }).addTo(map);
+    }
+
+    function beforePickup(s) {
+      return ['OFFERED','ACCEPTED','EN_ROUTE','ARRIVED_AT_PICKUP','PATIENT_VERIFIED'].indexOf(s) >= 0;
+    }
+    function updatePanel(lat, lng) {
+      var s = state.status || 'EN_ROUTE';
+      document.getElementById('status').textContent = 'Ambulance ' + s.replace(/_/g, ' ');
+      if (lat == null) return;
+      var target = beforePickup(s) ? state.pickup : state.destination;
+      var label = beforePickup(s) ? 'your pickup' : (state.destination ? state.destination.label : 'hospital');
+      if (target) {
+        var km = haversine([lat, lng], [target.lat, target.lng]);
+        document.getElementById('eta').textContent = 'Approx ' + km.toFixed(1) + ' km from ' + label + ' · ' + state.driverName;
+      }
+    }
+
+    // One REST snapshot: draw static markers + planned road, capture driver id + status.
+    async function snapshot(recenter) {
+      try {
+        var res = await fetch('/api/v1/track/route?caseId=' + encodeURIComponent(caseId) + '&token=' + encodeURIComponent(token));
+        if (!res.ok) return;
+        var r = await res.json();
+        state.pickup = r.pickup; state.destination = r.destination; state.status = r.assignmentStatus;
+        state.driverAgentId = r.driver ? r.driver.agentId : null;
+        state.driverName = r.driver ? r.driver.name : '';
+
+        if (!staticDrawn) {
+          if (r.pickup) L.marker([r.pickup.lat, r.pickup.lng], { icon: pin('#16a34a', '📍') }).addTo(map).bindTooltip('Pickup · ' + r.pickup.label);
+          if (r.destination) L.marker([r.destination.lat, r.destination.lng], { icon: pin('#dc2626', '🏥') }).addTo(map).bindTooltip('Hospital · ' + r.destination.label);
+          staticDrawn = true;
+        }
+        if (r.driver && r.driver.lat != null) {
+          moveDriver(r.driver.lat, r.driver.lng);
+          var road = [[r.driver.lat, r.driver.lng]];
+          if (r.pickup) road.push([r.pickup.lat, r.pickup.lng]);
+          if (r.destination) road.push([r.destination.lat, r.destination.lng]);
+          if (!state.routeDrawn && road.length >= 2) { drawRoad(road); state.routeDrawn = true; }
+          if ((recenter || !fitted)) { map.fitBounds(L.latLngBounds(road).pad(0.25)); fitted = true; }
+        } else {
+          document.getElementById('status').textContent = 'Ambulance not dispatched yet';
+        }
+      } catch (e) {}
+    }
+
+    function moveDriver(lat, lng) {
+      if (!driverMarker) driverMarker = L.marker([lat, lng], { icon: pin('#2563eb', '🚑'), zIndexOffset: 1000 }).addTo(map);
+      else driverMarker.setLatLng([lat, lng]);
+      driverMarker.bindTooltip(state.driverName + ' · ' + (state.status || 'EN_ROUTE'));
+      updatePanel(lat, lng);
+    }
+
+    // Real-time: push updates over Server-Sent Events (same stream the Command Centre uses).
+    function connectSse() {
+      var es = new EventSource('/api/v1/live/stream?token=' + encodeURIComponent(token));
+      es.addEventListener('hello', function () { setLive(true); });
+      es.addEventListener('location', function (ev) {
+        try {
+          var d = JSON.parse(ev.data);
+          if (d.kind === 'agent' && Number(d.id) === Number(state.driverAgentId) && d.lat != null) {
+            moveDriver(d.lat, d.lng);   // instant marker move — no polling delay
+          }
+        } catch (e) {}
+      });
+      // Case / assignment status change (e.g. EN_ROUTE -> PATIENT_PICKED): refresh the snapshot.
+      es.addEventListener('event', function () { snapshot(false); });
+      es.onopen = function () { setLive(true); };
+      es.onerror = function () { setLive(false); /* EventSource auto-reconnects */ };
+    }
+    function setLive(on) {
+      var el = document.getElementById('live');
+      el.textContent = on ? '● LIVE' : '● reconnecting';
+      el.className = on ? '' : 'off';
+    }
+
+    snapshot(true).then(connectSse);
+    // Safety net if a driver is assigned later or SSE silently drops.
+    setInterval(function () { snapshot(false); }, 20000);
+  </script>
+</body>
+</html>

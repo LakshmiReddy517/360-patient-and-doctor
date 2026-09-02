@@ -1,0 +1,29 @@
+package com.pcare.casefile.domain;
+
+/** Categories of timeline event, spanning the whole patient journey. */
+public enum CaseEventType {
+    CASE_CREATED,
+    STATUS_CHANGED,
+    PRIORITY_CHANGED,
+    ASSIGNED,
+    NOTE_ADDED,
+    PATIENT_REGISTERED,
+    DOCUMENT_UPLOADED,
+    CONSENT_UPDATED,
+    SERVICE_REQUESTED,
+    TRIAGED,
+    QUOTE_PREPARED,
+    QUOTE_SENT,
+    QUOTE_ACCEPTED,
+    PAYMENT_RECEIVED,
+    RESOURCE_ASSIGNED,
+    PICKUP_STARTED,
+    PATIENT_PICKED,
+    HOSPITAL_ARRIVED,
+    APPOINTMENT_BOOKED,
+    CARE_ACTIVITY,
+    DISCHARGED,
+    CASE_CLOSED,
+    EMERGENCY_ESCALATED,
+    COMPLAINT_RAISED
+}
