@@ -45,15 +45,18 @@ public class ServiceRequestService {
     private final com.pcare.live.LiveHub liveHub;
     private final AssignmentService assignmentService;
     private final AgentRepository agentRepository;
+    private final com.pcare.healthcare.repo.HospitalRepository hospitalRepository;
 
     public ServiceRequestService(ServiceRequestRepository repository, CaseService caseService,
                                  com.pcare.live.LiveHub liveHub, AssignmentService assignmentService,
-                                 AgentRepository agentRepository) {
+                                 AgentRepository agentRepository,
+                                 com.pcare.healthcare.repo.HospitalRepository hospitalRepository) {
         this.repository = repository;
         this.caseService = caseService;
         this.liveHub = liveHub;
         this.assignmentService = assignmentService;
         this.agentRepository = agentRepository;
+        this.hospitalRepository = hospitalRepository;
     }
 
     @Transactional
@@ -79,6 +82,12 @@ public class ServiceRequestService {
     @Transactional(readOnly = true)
     public ServiceRequest get(Long id) {
         return repository.findById(id).orElseThrow(() -> NotFoundException.of("ServiceRequest", id));
+    }
+
+    /** The originating service request for a case, as a detail DTO (pickup/destination), or null. */
+    @Transactional(readOnly = true)
+    public RequestDetailDto detailByCase(Long caseId) {
+        return repository.findFirstByCaseId(caseId).map(this::toDetail).orElse(null);
     }
 
     @Transactional(readOnly = true)
@@ -143,30 +152,52 @@ public class ServiceRequestService {
         repository.save(sr);
         caseService.addEvent(caseFile.getId(), CaseEventType.SERVICE_REQUESTED,
                 "Created from service request #" + sr.getId() + " (" + title + ")", "SERVICE_REQUEST");
-        // On approval, auto-dispatch the case to an available field agent so it appears at the
-        // agent login immediately (least-busy ONLINE/AVAILABLE agent).
-        autoDispatch(caseFile.getId(), title);
+        // On approval, auto-dispatch to the best-matched available agent (nearest to pickup, then least-busy).
+        autoDispatch(caseFile.getId(), title, sr);
         return sr;
     }
 
     /**
-     * Picks the least-busy dispatchable agent (ONLINE/AVAILABLE) and creates an assignment for the
-     * case. No-op (with a case note) if none are free — an admin can then dispatch manually.
-     * Failures here never abort the conversion.
+     * Picks the best dispatchable agent (ONLINE/AVAILABLE) scored by distance to the pickup location,
+     * tie-broken by workload. No-op (with a case note) if none are free — an admin can then dispatch
+     * manually. Failures here never abort the conversion.
      */
-    private void autoDispatch(Long caseId, String title) {
+    private void autoDispatch(Long caseId, String title, ServiceRequest sr) {
         try {
             List<Agent> free = agentRepository.findByStatusIn(List.of(AgentStatus.ONLINE, AgentStatus.AVAILABLE));
-            Agent chosen = free.stream().min(Comparator.comparingInt(Agent::getActiveAssignments)).orElse(null);
+            Double plat = sr.getPickup() != null ? sr.getPickup().getLatitude() : null;
+            Double plng = sr.getPickup() != null ? sr.getPickup().getLongitude() : null;
+            Agent chosen = free.stream().min(Comparator
+                    .comparingDouble((Agent a) -> dispatchScore(a, plat, plng))
+                    .thenComparingInt(Agent::getActiveAssignments)).orElse(null);
             if (chosen == null) {
                 caseService.addEvent(caseId, CaseEventType.NOTE_ADDED,
                         "Approved — no agent available for auto-dispatch, awaiting manual assignment", "SERVICE_REQUEST");
                 return;
             }
-            assignmentService.assign(chosen.getId(), caseId, "Auto-dispatched on approval (" + title + ")");
+            String how = (plat != null && chosen.getCurrentLatitude() != null)
+                    ? String.format("nearest agent (~%.1f km away)",
+                            km(plat, plng, chosen.getCurrentLatitude(), chosen.getCurrentLongitude()))
+                    : "least-busy available agent";
+            assignmentService.assign(chosen.getId(), caseId, "Auto-dispatched on approval — " + how + " (" + title + ")");
         } catch (Exception e) {
             log.warn("Auto-dispatch failed for case {}: {}", caseId, e.getMessage());
         }
+    }
+
+    /** Distance (km) from the agent to the pickup; agents/pickups with unknown coords sort last. */
+    private double dispatchScore(Agent a, Double plat, Double plng) {
+        if (plat == null || plng == null || a.getCurrentLatitude() == null || a.getCurrentLongitude() == null) {
+            return 1_000_000 + a.getActiveAssignments();
+        }
+        return km(plat, plng, a.getCurrentLatitude(), a.getCurrentLongitude());
+    }
+
+    private double km(double lat1, double lng1, double lat2, double lng2) {
+        double r = 6371, dLat = Math.toRadians(lat2 - lat1), dLng = Math.toRadians(lng2 - lng1);
+        double x = Math.sin(dLat / 2) * Math.sin(dLat / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+        return r * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
     }
 
     @Transactional(readOnly = true)
@@ -196,11 +227,23 @@ public class ServiceRequestService {
     private void applyDestination(DestinationInfo dest, DestinationDto d) {
         if (d == null) return;
         dest.setDestinationType(d.destinationType());
+        dest.setHospitalId(d.hospitalId());
         dest.setHospitalName(d.hospitalName());
         dest.setDepartment(d.department());
         dest.setDoctorName(d.doctorName());
         dest.setAddress(d.address());
+        dest.setLatitude(d.latitude());
+        dest.setLongitude(d.longitude());
         dest.setAppointmentAt(d.appointmentAt());
+        // Linked to the Hospital Master: when a hospitalId is given, fill name/coords/address from the master record.
+        if (d.hospitalId() != null) {
+            hospitalRepository.findById(d.hospitalId()).ifPresent(h -> {
+                dest.setHospitalName(h.getName());
+                if (h.getLatitude() != null) dest.setLatitude(h.getLatitude());
+                if (h.getLongitude() != null) dest.setLongitude(h.getLongitude());
+                if (dest.getAddress() == null || dest.getAddress().isBlank()) dest.setAddress(h.getAddressLine());
+            });
+        }
     }
 
     public RequestSummaryDto toSummary(ServiceRequest r) {
@@ -217,8 +260,8 @@ public class ServiceRequestService {
                 r.getCaseId(), r.getCaseNumber(),
                 new PickupDto(p.getSource(), p.getAddress(), p.getLatitude(), p.getLongitude(), p.getScheduledAt(),
                         p.getFlightOrTrainNumber(), p.getArrivalTime(), p.getTerminalOrCoach(), p.getSeatOrBerth()),
-                new DestinationDto(d.getDestinationType(), d.getHospitalName(), d.getDepartment(), d.getDoctorName(),
-                        d.getAddress(), d.getAppointmentAt()),
+                new DestinationDto(d.getDestinationType(), d.getHospitalId(), d.getHospitalName(), d.getDepartment(),
+                        d.getDoctorName(), d.getAddress(), d.getLatitude(), d.getLongitude(), d.getAppointmentAt()),
                 r.getCreatedAt(), r.getUpdatedAt());
     }
 }

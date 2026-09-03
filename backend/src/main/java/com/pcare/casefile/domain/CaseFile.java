@@ -65,4 +65,11 @@ public class CaseFile extends BaseEntity {
 
     @Column(length = 160)
     private String assignedToName;
+
+    // ---- Response SLA (blueprint point 68) ----
+    /** Deadline by which a resource should be assigned / first response given, set from priority at creation. */
+    private java.time.Instant slaTargetAt;
+
+    /** When the first-response milestone (resource assigned) was actually met; null while still pending. */
+    private java.time.Instant slaMetAt;
 }

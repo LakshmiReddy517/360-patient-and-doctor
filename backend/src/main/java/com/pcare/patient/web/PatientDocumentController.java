@@ -72,6 +72,8 @@ public class PatientDocumentController {
         if (doc.getStoredFileName() == null) {
             return ResponseEntity.notFound().build();
         }
+        // Audit who accessed this patient record (blueprint point 14).
+        patientService.recordDocumentAccess(doc, "DOWNLOAD");
         Resource resource = fileStorage.load(doc.getStoredFileName());
         String filename = doc.getOriginalFileName() != null ? doc.getOriginalFileName() : "document";
         String ct = doc.getContentType() != null ? doc.getContentType() : MediaType.APPLICATION_OCTET_STREAM_VALUE;
@@ -79,5 +81,12 @@ public class PatientDocumentController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
                 .contentType(MediaType.parseMediaType(ct))
                 .body(resource);
+    }
+
+    @Operation(summary = "Access history for a document — who viewed/downloaded it (blueprint point 14)")
+    @GetMapping("/{documentId}/access-log")
+    public List<com.pcare.patient.web.dto.PatientDtos.DocumentAccessDto> accessLog(
+            @PathVariable Long patientId, @PathVariable Long documentId) {
+        return patientService.documentAccessHistory(documentId);
     }
 }

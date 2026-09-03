@@ -18,6 +18,10 @@ public class DestinationInfo {
     @Column(name = "dest_type", length = 60)
     private String destinationType;   // e.g. Hospital, Home, Hotel
 
+    /** FK to the Hospital Master (blueprint point 10) — when set, name/coords are filled from master. */
+    @Column(name = "dest_hospital_id")
+    private Long hospitalId;
+
     @Column(name = "dest_hospital", length = 160)
     private String hospitalName;
 

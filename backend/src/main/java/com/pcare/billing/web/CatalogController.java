@@ -44,6 +44,17 @@ public class CatalogController {
         return catalogService.upsertRateCard(req);
     }
 
+    @Operation(summary = "Multi-factor fare estimate: base + per-km distance, emergency multiplier, night surcharge")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','FINANCE','AGENT','PATIENT')")
+    @GetMapping("/pricing/estimate")
+    public com.pcare.billing.web.dto.BillingDtos.FareEstimate estimate(
+            @org.springframework.web.bind.annotation.RequestParam com.pcare.servicerequest.domain.ServiceType serviceType,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "0") double distanceKm,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean emergency,
+            @org.springframework.web.bind.annotation.RequestParam(defaultValue = "false") boolean night) {
+        return catalogService.estimate(serviceType, distanceKm, emergency, night);
+    }
+
     @Operation(summary = "List packages")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','FINANCE','PATIENT')")
     @GetMapping("/packages")

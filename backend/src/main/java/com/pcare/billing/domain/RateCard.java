@@ -42,6 +42,23 @@ public class RateCard extends BaseEntity {
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal unitRate = BigDecimal.ZERO;
 
+    // ---- Multi-factor pricing inputs (blueprint point 17) ----
+    /** Flat pickup / base fare added once per trip, independent of distance. */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal baseFare = BigDecimal.ZERO;
+
+    /** Charge added per kilometre of the trip (pickup -> destination). */
+    @Column(nullable = false, precision = 12, scale = 2)
+    private BigDecimal perKmRate = BigDecimal.ZERO;
+
+    /** Multiplier applied to (base + distance) when the case is an emergency, e.g. 1.50 = +50%. */
+    @Column(nullable = false, precision = 6, scale = 2)
+    private BigDecimal emergencyMultiplier = BigDecimal.ONE;
+
+    /** Percentage surcharge added for night-hour trips (22:00–06:00), e.g. 20 = +20%. */
+    @Column(nullable = false, precision = 6, scale = 2)
+    private BigDecimal nightSurchargePercent = BigDecimal.ZERO;
+
     @Column(nullable = false)
     private boolean active = true;
 }

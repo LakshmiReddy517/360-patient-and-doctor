@@ -89,4 +89,17 @@ public class Agent extends BaseEntity {
     private boolean verified = false;
 
     private LocalDate documentExpiry;
+
+    // ---- EMT / paramedic qualification (blueprint point 28) ----
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 24)
+    private EmtLevel emtLevel = EmtLevel.NONE;
+
+    @Column(length = 8)
+    private String bloodGroup;
+
+    @Column(length = 60)
+    private String licenceNumber;
+
+    private LocalDate certificationExpiry;
 }

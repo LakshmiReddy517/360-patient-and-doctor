@@ -14,4 +14,8 @@ public interface AssignmentRepository extends JpaRepository<Assignment, Long> {
     List<Assignment> findByAgentIdAndStatusNotIn(Long agentId, List<AssignmentStatus> statuses);
 
     List<Assignment> findByStatusNotInOrderByCreatedAtDesc(List<AssignmentStatus> statuses);
+
+    long countByStatusNotIn(List<AssignmentStatus> statuses);
+
+    long countByCreatedAtGreaterThanEqual(java.time.Instant since);
 }

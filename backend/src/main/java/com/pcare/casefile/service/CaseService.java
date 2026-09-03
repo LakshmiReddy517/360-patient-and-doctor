@@ -16,7 +16,9 @@ import com.pcare.casefile.web.dto.CaseDtos.DashboardStats;
 import com.pcare.casefile.web.dto.CaseDtos.TimelineEventDto;
 import com.pcare.casefile.web.dto.CaseDtos.UpdatePriorityRequest;
 import com.pcare.casefile.web.dto.CaseDtos.UpdateStatusRequest;
+import com.pcare.common.event.NotificationRequestedEvent;
 import com.pcare.common.exception.NotFoundException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -35,15 +37,18 @@ public class CaseService {
     private final CaseTimelineEventRepository timelineRepository;
     private final CaseNumberGenerator numberGenerator;
     private final com.pcare.live.LiveHub liveHub;
+    private final ApplicationEventPublisher events;
 
     public CaseService(CaseFileRepository caseRepository,
                        CaseTimelineEventRepository timelineRepository,
                        CaseNumberGenerator numberGenerator,
-                       com.pcare.live.LiveHub liveHub) {
+                       com.pcare.live.LiveHub liveHub,
+                       ApplicationEventPublisher events) {
         this.caseRepository = caseRepository;
         this.timelineRepository = timelineRepository;
         this.numberGenerator = numberGenerator;
         this.liveHub = liveHub;
+        this.events = events;
     }
 
     @Transactional
@@ -61,6 +66,7 @@ public class CaseService {
             c.setPriority(CasePriority.EMERGENCY);
         }
         c.setStatus(CaseStatus.OPEN);
+        c.setSlaTargetAt(java.time.Instant.now().plus(slaMinutesFor(c.getPriority()), java.time.temporal.ChronoUnit.MINUTES));
         CaseFile saved = caseRepository.save(c);
         addEvent(saved.getId(), CaseEventType.CASE_CREATED,
                 "Case " + saved.getCaseNumber() + " created for " + saved.getPatientName(), "CASE");
@@ -78,8 +84,13 @@ public class CaseService {
         c.setStatus(req.status());
         caseRepository.save(c);
         String note = (req.note() == null || req.note().isBlank()) ? "" : " — " + req.note();
-        addEvent(id, CaseEventType.STATUS_CHANGED,
-                "Status: " + old + " -> " + req.status() + note, "CASE");
+        // Use the specific terminal event types so closure/completion notify the patient.
+        CaseEventType evt = switch (req.status()) {
+            case CLOSED -> CaseEventType.CASE_CLOSED;
+            case COMPLETED -> CaseEventType.DISCHARGED;
+            default -> CaseEventType.STATUS_CHANGED;
+        };
+        addEvent(id, evt, "Status: " + old + " -> " + req.status() + note, "CASE");
         return c;
     }
 
@@ -113,8 +124,27 @@ public class CaseService {
 
     /** Shared entry point used by other modules to append a timeline event to a case.
      * Also broadcasts the event to the real-time hub so the Command Centre updates live. */
+    /** First-response SLA target in minutes, tighter for higher priority (blueprint point 68). */
+    private long slaMinutesFor(CasePriority priority) {
+        return switch (priority) {
+            case EMERGENCY -> 15;
+            case HIGH -> 30;
+            case NORMAL -> 120;
+            case LOW -> 240;
+        };
+    }
+
     @Transactional
     public CaseTimelineEvent addEvent(Long caseId, CaseEventType type, String description, String source) {
+        // Mark the first-response SLA as met the moment a resource is assigned to the case.
+        if (type == CaseEventType.RESOURCE_ASSIGNED) {
+            caseRepository.findById(caseId).ifPresent(c -> {
+                if (c.getSlaMetAt() == null) {
+                    c.setSlaMetAt(java.time.Instant.now());
+                    caseRepository.save(c);
+                }
+            });
+        }
         CaseTimelineEvent saved = timelineRepository.save(CaseTimelineEvent.of(caseId, type, description, source));
         liveHub.broadcast("event", java.util.Map.of(
                 "caseId", caseId,
@@ -123,7 +153,46 @@ public class CaseService {
                 "source", source == null ? "" : source,
                 "emergency", type == CaseEventType.EMERGENCY_ESCALATED,
                 "at", java.time.Instant.now().toString()));
+        notifyPatient(caseId, type, description);
         return saved;
+    }
+
+    /** Patient-facing message + channel/category for a timeline event, or null for internal events. */
+    private record Notif(String channel, String category, String message) {}
+
+    private Notif notificationFor(CaseEventType type, String description) {
+        return switch (type) {
+            case CASE_CREATED       -> new Notif("WHATSAPP", "GENERAL",   "Your care case has been created. We'll keep you updated at every step.");
+            case TRIAGED            -> new Notif("WHATSAPP", "GENERAL",   "Your request is being reviewed by our care team.");
+            case QUOTE_SENT         -> new Notif("WHATSAPP", "PAYMENT",   "A quote for your case is ready — please review and accept it in the app.");
+            case QUOTE_ACCEPTED     -> new Notif("WHATSAPP", "GENERAL",   "Thank you — your quote has been accepted. We're arranging your services.");
+            case RESOURCE_ASSIGNED  -> new Notif("WHATSAPP", "PICKUP",    "An agent has been assigned to your case and will reach you shortly.");
+            case PICKUP_STARTED     -> new Notif("WHATSAPP", "PICKUP",    "Your agent is on the way to pick you up.");
+            case PATIENT_PICKED     -> new Notif("WHATSAPP", "PICKUP",    "Pickup confirmed — you are on the way to the hospital.");
+            case HOSPITAL_ARRIVED   -> new Notif("WHATSAPP", "PICKUP",    "You have arrived at the hospital.");
+            case APPOINTMENT_BOOKED -> new Notif("WHATSAPP", "APPOINTMENT","Your doctor appointment has been booked.");
+            case CARE_ACTIVITY      -> new Notif("WHATSAPP", "MEDICAL",   description == null || description.isBlank() ? "Update on your care." : description);
+            case DISCHARGED         -> new Notif("WHATSAPP", "GENERAL",   "You have been discharged. Wishing you a speedy recovery.");
+            case CASE_CLOSED        -> new Notif("WHATSAPP", "GENERAL",   "Your case is now complete. Thank you for choosing 360 Patient Care.");
+            case EMERGENCY_ESCALATED-> new Notif("SMS",      "EMERGENCY", "EMERGENCY escalated — our team is arranging immediate help.");
+            case COMPLAINT_RAISED   -> new Notif("WHATSAPP", "GENERAL",   "Your complaint has been registered. Our support team will get back to you.");
+            // Internal / duplicate events (status/priority/notes/coordinator-assign/service-requested/quote-prepared,
+            // and PAYMENT_RECEIVED which PaymentService already notifies) do not message the patient.
+            default -> null;
+        };
+    }
+
+    /** Fires a patient notification for notify-worthy case events, via the decoupled notification engine. */
+    private void notifyPatient(Long caseId, CaseEventType type, String description) {
+        Notif n = notificationFor(type, description);
+        if (n == null) return;
+        caseRepository.findById(caseId).ifPresent(c -> {
+            if (c.getPatientMobile() == null && c.getPatientId() == null) return; // nowhere to deliver
+            String subject = "360 Patient Care" + (c.getCaseNumber() != null ? " · " + c.getCaseNumber() : "");
+            events.publishEvent(new NotificationRequestedEvent(
+                    c.getPatientId(), c.getPatientName(), c.getPatientMobile(),
+                    n.channel(), n.category(), subject, n.message(), caseId));
+        });
     }
 
     @Transactional(readOnly = true)
@@ -153,13 +222,22 @@ public class CaseService {
                 caseRepository.countByStatus(CaseStatus.ON_HOLD),
                 caseRepository.countByEmergencyTrueAndStatusNot(CaseStatus.CLOSED),
                 caseRepository.countByStatus(CaseStatus.CLOSED),
-                caseRepository.count());
+                caseRepository.count(),
+                caseRepository.countBySlaMetAtIsNullAndSlaTargetAtBefore(java.time.Instant.now()));
     }
 
     public CaseSummaryDto toSummary(CaseFile c) {
         return new CaseSummaryDto(c.getId(), c.getCaseNumber(), c.getPatientId(), c.getPatientName(),
                 c.getPatientMobile(), c.getTitle(), c.getStatus(), c.getPriority(), c.isEmergency(),
-                c.getAssignedToUserId(), c.getAssignedToName(), c.getCreatedAt(), c.getUpdatedAt());
+                c.getAssignedToUserId(), c.getAssignedToName(), c.getSlaTargetAt(), c.getSlaMetAt(),
+                isSlaBreached(c), c.getCreatedAt(), c.getUpdatedAt());
+    }
+
+    /** Breached when the first-response milestone landed (or, if still pending, is now) past the target. */
+    private boolean isSlaBreached(CaseFile c) {
+        if (c.getSlaTargetAt() == null) return false;
+        java.time.Instant ref = c.getSlaMetAt() != null ? c.getSlaMetAt() : java.time.Instant.now();
+        return ref.isAfter(c.getSlaTargetAt());
     }
 
     private TimelineEventDto toTimelineDto(CaseTimelineEvent e) {

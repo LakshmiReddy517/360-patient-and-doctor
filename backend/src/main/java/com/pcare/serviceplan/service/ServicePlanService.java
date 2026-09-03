@@ -45,49 +45,68 @@ public class ServicePlanService {
         this.clinicalService = clinicalService;
     }
 
+    /** Status tokens that mean the service has actually been delivered / fulfilled. */
+    private static final java.util.Set<String> DELIVERED_STATES = java.util.Set.of(
+            "COMPLETED", "PAID", "DISCHARGED", "ARRIVED", "DELIVERED", "DONE", "CLOSED",
+            "FULFILLED", "ACTIVE", "RESOLVED");
+
+    private static boolean isDelivered(String status) {
+        return status != null && DELIVERED_STATES.contains(status.toUpperCase());
+    }
+
+    /** Builds a plan line, deriving actual (delivered) value from the item's status. */
+    private PlanItem item(String category, String title, String detail, String status, BigDecimal planned) {
+        boolean delivered = isDelivered(status);
+        BigDecimal plan = planned != null ? planned : BigDecimal.ZERO;
+        BigDecimal actual = delivered ? plan : BigDecimal.ZERO;
+        return new PlanItem(category, title, detail, status, plan, actual, delivered);
+    }
+
     @Transactional(readOnly = true)
     public Plan build(Long caseId) {
         CaseFile c = caseService.get(caseId);
         List<PlanItem> items = new ArrayList<>();
-        BigDecimal committed = BigDecimal.ZERO;
 
         // Billing quotes
         for (var q : quoteService.listByCase(caseId)) {
-            items.add(new PlanItem("Billing", "Quote #" + q.id(), q.items().size() + " line(s)",
+            items.add(item("Billing", "Quote #" + q.id(), q.items().size() + " line(s)",
                     q.status().name(), q.total()));
-            committed = committed.add(q.total());
         }
         // Agent dispatch
         for (var a : assignmentService.listByCase(caseId)) {
-            items.add(new PlanItem("Dispatch", "Care agent", a.agentName(), a.status().name(), null));
+            items.add(item("Dispatch", "Care agent", a.agentName(), a.status().name(), null));
         }
         // Ambulance
         for (AmbulanceDto amb : fleetService.listAll()) {
             if (caseId.equals(amb.currentCaseId())) {
-                items.add(new PlanItem("Transport", "Ambulance " + amb.category(), amb.registrationNo(),
+                items.add(item("Transport", "Ambulance " + amb.category(), amb.registrationNo(),
                         amb.status().name(), null));
             }
         }
         // Appointments
         for (var ap : appointmentService.listByCase(caseId)) {
-            items.add(new PlanItem("Healthcare", "Appointment", ap.doctorName()
+            items.add(item("Healthcare", "Appointment", ap.doctorName()
                     + (ap.department() != null ? " · " + ap.department() : ""), ap.status().name(), null));
         }
         // Caretaker
         for (var ca : careService.assignmentsByCase(caseId)) {
-            items.add(new PlanItem("Care", "Caretaker", ca.caretakerName(), ca.status().name(), null));
+            items.add(item("Care", "Caretaker", ca.caretakerName(), ca.status().name(), null));
         }
         // Care bookings (accommodation / food / transport)
         for (var b : careService.bookingsByCase(caseId)) {
-            items.add(new PlanItem("Care", b.type().name(), b.provider(), b.status().name(), b.total()));
-            committed = committed.add(b.total());
+            items.add(item("Care", b.type().name(), b.provider(), b.status().name(), b.total()));
         }
         // Medicines
         for (var m : clinicalService.medicinesByCase(caseId)) {
-            items.add(new PlanItem("Clinical", "Medicine", m.name()
+            items.add(item("Clinical", "Medicine", m.name()
                     + (m.dose() != null ? " " + m.dose() : ""), m.active() ? "ACTIVE" : "STOPPED", null));
         }
 
-        return new Plan(c.getId(), c.getCaseNumber(), c.getPatientName(), items, items.size(), committed);
+        BigDecimal planned = items.stream().map(PlanItem::plannedAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal delivered = items.stream().map(PlanItem::actualAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        int deliveredCount = (int) items.stream().filter(PlanItem::delivered).count();
+
+        return new Plan(c.getId(), c.getCaseNumber(), c.getPatientName(), items, items.size(),
+                deliveredCount, planned, planned, delivered, planned.subtract(delivered));
     }
 }

@@ -24,14 +24,20 @@ public final class DispatchDtos {
             Set<String> skills,
             Set<String> languages,
             String shift,
-            Boolean verified) {
+            Boolean verified,
+            com.pcare.dispatch.domain.EmtLevel emtLevel,
+            String bloodGroup,
+            String licenceNumber,
+            java.time.LocalDate certificationExpiry) {
     }
 
     public record AgentDto(
             Long id, Long userId, String fullName, String mobile, String email, String employeeCode,
             Set<String> skills, Set<String> languages, AgentStatus status, Double currentLatitude,
             Double currentLongitude, Instant locationUpdatedAt, String shift, double rating,
-            int activeAssignments, boolean verified) {
+            int activeAssignments, boolean verified,
+            com.pcare.dispatch.domain.EmtLevel emtLevel, String bloodGroup, String licenceNumber,
+            java.time.LocalDate certificationExpiry) {
     }
 
     public record StatusRequest(@NotNull AgentStatus status) {

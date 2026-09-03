@@ -34,6 +34,9 @@ export interface CaseSummary {
   emergency: boolean;
   assignedToUserId?: number;
   assignedToName?: string;
+  slaTargetAt?: string;
+  slaMetAt?: string;
+  slaBreached?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -60,6 +63,7 @@ export interface DashboardStats {
   emergencies: number;
   closedCases: number;
   totalCases: number;
+  slaBreached: number;
 }
 
 // ---- Patient module ----
@@ -184,10 +188,13 @@ export interface PickupInfo {
 
 export interface DestinationInfo {
   destinationType?: string;
+  hospitalId?: number;
   hospitalName?: string;
   department?: string;
   doctorName?: string;
   address?: string;
+  latitude?: number;
+  longitude?: number;
   appointmentAt?: string;
 }
 
@@ -232,6 +239,10 @@ export interface RateCard {
   label: string;
   unit: string;
   unitRate: number;
+  baseFare?: number;
+  perKmRate?: number;
+  emergencyMultiplier?: number;
+  nightSurchargePercent?: number;
   active: boolean;
 }
 
@@ -320,7 +331,13 @@ export interface Agent {
   rating: number;
   activeAssignments: number;
   verified: boolean;
+  emtLevel?: EmtLevel;
+  bloodGroup?: string;
+  licenceNumber?: string;
+  certificationExpiry?: string;
 }
+
+export type EmtLevel = 'NONE' | 'EMT_BASIC' | 'EMT_INTERMEDIATE' | 'EMT_PARAMEDIC';
 
 export interface Assignment {
   id: number;
@@ -718,13 +735,15 @@ export interface Settlement {
 
 export interface SettlementStats { pending: number; approved: number; paid: number; unsettledTotal: number; }
 
-// ---- Service Plan ----
+// ---- Service Plan (planned vs actual) ----
 export interface ServicePlanItem {
   category: string;
   title: string;
   detail?: string;
   status: string;
-  amount?: number;
+  plannedAmount: number;
+  actualAmount: number;
+  delivered: boolean;
 }
 
 export interface ServicePlan {
@@ -733,7 +752,143 @@ export interface ServicePlan {
   patientName?: string;
   items: ServicePlanItem[];
   totalItems: number;
+  deliveredItems: number;
   committedValue: number;
+  plannedValue: number;
+  deliveredValue: number;
+  varianceValue: number;
+}
+
+// ---- Equipment inventory (point 27) ----
+export type EquipmentCategory = 'OXYGEN' | 'MOBILITY' | 'MONITORING' | 'RESPIRATORY' | 'OTHER';
+
+export interface EquipmentItem {
+  id: number;
+  name: string;
+  category: EquipmentCategory;
+  unit?: string;
+  totalQuantity: number;
+  availableQuantity: number;
+  allocatedQuantity: number;
+  active: boolean;
+}
+
+export interface EquipmentAllocation {
+  id: number;
+  equipmentItemId: number;
+  equipmentName?: string;
+  caseId?: number;
+  caseNumber?: string;
+  quantity: number;
+  returned: boolean;
+  returnedAt?: string;
+  createdAt: string;
+}
+
+// ---- Accommodation master (point 42) ----
+export interface Accommodation {
+  id: number;
+  name: string;
+  type?: string;
+  addressLine?: string;
+  city?: string;
+  latitude?: number;
+  longitude?: number;
+  roomType?: string;
+  pricePerNight: number;
+  distanceToHospitalKm?: number;
+  available: boolean;
+  roomsAvailable?: number;
+  contactPhone?: string;
+  active: boolean;
+}
+
+export interface NearbyAccommodation {
+  option: Accommodation;
+  distanceKm: number;
+}
+
+// ---- Cash handling (point 46) ----
+export interface CashCollection {
+  id: number;
+  agentId: number;
+  agentName?: string;
+  caseId?: number;
+  caseNumber?: string;
+  amount: number;
+  note?: string;
+  deposited: boolean;
+  depositedAt?: string;
+  depositReference?: string;
+  createdAt: string;
+}
+
+export interface CashInHandSummary {
+  agentId: number;
+  collected: number;
+  deposited: number;
+  inHand: number;
+  totalCollections: number;
+  pendingDeposits: number;
+}
+
+// ---- Unified Trip (points 44 & 76) ----
+export interface TripLeg {
+  label?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
+}
+
+export interface Trip {
+  caseId: number;
+  caseNumber?: string;
+  patientName?: string;
+  phase: string;
+  agentId?: number;
+  agentName?: string;
+  assignmentStatus?: string;
+  pickupOtp?: string;
+  handoverOtp?: string;
+  ambulanceId?: number;
+  ambulanceRegistration?: string;
+  ambulanceCategory?: string;
+  ambulanceStatus?: string;
+  pickup?: TripLeg;
+  destination?: TripLeg;
+  distanceKm?: number;
+  appointmentAt?: string;
+  acceptedAt?: string;
+  pickedAt?: string;
+  completedAt?: string;
+}
+
+// ---- Fare estimate (point 17) ----
+export interface FareEstimate {
+  serviceType: ServiceType;
+  label?: string;
+  distanceKm: number;
+  emergency: boolean;
+  night: boolean;
+  baseFare: number;
+  distanceCharge: number;
+  subtotal: number;
+  emergencySurcharge: number;
+  nightSurcharge: number;
+  total: number;
+  currency: string;
+}
+
+// ---- Document access history (point 14) ----
+export interface DocumentAccess {
+  id: number;
+  documentId: number;
+  patientId?: number;
+  action: string;
+  accessedByUserId?: number;
+  accessedByName?: string;
+  accessedByRole?: string;
+  accessedAt: string;
 }
 
 export interface Page<T> {

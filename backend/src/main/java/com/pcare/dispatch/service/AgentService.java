@@ -50,6 +50,10 @@ public class AgentService {
         a.setLanguages(req.languages() != null ? new HashSet<>(req.languages()) : new HashSet<>());
         a.setShift(req.shift());
         if (req.verified() != null) a.setVerified(req.verified());
+        if (req.emtLevel() != null) a.setEmtLevel(req.emtLevel());
+        a.setBloodGroup(req.bloodGroup());
+        a.setLicenceNumber(req.licenceNumber());
+        a.setCertificationExpiry(req.certificationExpiry());
     }
 
     @Transactional(readOnly = true)
@@ -108,6 +112,7 @@ public class AgentService {
         return new AgentDto(a.getId(), a.getUserId(), a.getFullName(), a.getMobile(), a.getEmail(),
                 a.getEmployeeCode(), a.getSkills(), a.getLanguages(), a.getStatus(), a.getCurrentLatitude(),
                 a.getCurrentLongitude(), a.getLocationUpdatedAt(), a.getShift(), a.getRating(),
-                a.getActiveAssignments(), a.isVerified());
+                a.getActiveAssignments(), a.isVerified(), a.getEmtLevel(), a.getBloodGroup(),
+                a.getLicenceNumber(), a.getCertificationExpiry());
     }
 }

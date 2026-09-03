@@ -42,16 +42,20 @@ public class PatientService {
     private final GuardianRepository guardianRepository;
     private final ConsentRepository consentRepository;
     private final MedicalDocumentRepository documentRepository;
+    private final com.pcare.patient.repo.DocumentAccessLogRepository documentAccessLogRepository;
     private final FileStorageService fileStorage;
 
     public PatientService(PatientRepository patientRepository, MedicalProfileRepository medicalRepository,
                           GuardianRepository guardianRepository, ConsentRepository consentRepository,
-                          MedicalDocumentRepository documentRepository, FileStorageService fileStorage) {
+                          MedicalDocumentRepository documentRepository,
+                          com.pcare.patient.repo.DocumentAccessLogRepository documentAccessLogRepository,
+                          FileStorageService fileStorage) {
         this.patientRepository = patientRepository;
         this.medicalRepository = medicalRepository;
         this.guardianRepository = guardianRepository;
         this.consentRepository = consentRepository;
         this.documentRepository = documentRepository;
+        this.documentAccessLogRepository = documentAccessLogRepository;
         this.fileStorage = fileStorage;
     }
 
@@ -209,6 +213,31 @@ public class PatientService {
     @Transactional(readOnly = true)
     public MedicalDocument getDocument(Long documentId) {
         return documentRepository.findById(documentId).orElseThrow(() -> NotFoundException.of("Document", documentId));
+    }
+
+    /** Records an access to a document for audit (blueprint point 14), stamping the current principal. */
+    @Transactional
+    public void recordDocumentAccess(MedicalDocument doc, String action) {
+        com.pcare.patient.domain.DocumentAccessLog log = new com.pcare.patient.domain.DocumentAccessLog();
+        log.setDocumentId(doc.getId());
+        log.setPatientId(doc.getPatientId());
+        log.setAction(action);
+        com.pcare.security.SecurityUtils.currentPrincipal().ifPresent(p -> {
+            log.setAccessedByUserId(p.getUserId());
+            log.setAccessedByName(p.getUsername());
+            log.setAccessedByRole(p.getAuthorities().stream().findFirst()
+                    .map(Object::toString).map(r -> r.replace("ROLE_", "")).orElse(null));
+        });
+        documentAccessLogRepository.save(log);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.pcare.patient.web.dto.PatientDtos.DocumentAccessDto> documentAccessHistory(Long documentId) {
+        return documentAccessLogRepository.findByDocumentIdOrderByCreatedAtDesc(documentId).stream()
+                .map(a -> new com.pcare.patient.web.dto.PatientDtos.DocumentAccessDto(
+                        a.getId(), a.getDocumentId(), a.getPatientId(), a.getAction(),
+                        a.getAccessedByUserId(), a.getAccessedByName(), a.getAccessedByRole(), a.getCreatedAt()))
+                .toList();
     }
 
     // ---------- Registration wizard ----------

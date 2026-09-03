@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, apiErrorMessage } from '../api/client';
-import type { Consent, Guardian, MedicalDocument, MedicalProfile, Patient } from '../types';
+import type { Consent, DocumentAccess, Guardian, MedicalDocument, MedicalProfile, Patient } from '../types';
 
 type Tab = 'profile' | 'medical' | 'guardians' | 'consent' | 'documents';
 
@@ -170,8 +170,16 @@ function DocumentsTab({ patientId }: { patientId: number }) {
   const [rows, setRows] = useState<MedicalDocument[]>([]);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [logFor, setLogFor] = useState<number | null>(null);
+  const [accessLog, setAccessLog] = useState<DocumentAccess[]>([]);
   const load = useCallback(() => { api.get<MedicalDocument[]>(`/patients/${patientId}/documents`).then((r) => setRows(r.data)); }, [patientId]);
   useEffect(() => { load(); }, [load]);
+
+  async function toggleLog(d: MedicalDocument) {
+    if (logFor === d.id) { setLogFor(null); return; }
+    const r = await api.get<DocumentAccess[]>(`/patients/${patientId}/documents/${d.id}/access-log`);
+    setAccessLog(r.data); setLogFor(d.id);
+  }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -195,6 +203,7 @@ function DocumentsTab({ patientId }: { patientId: number }) {
     a.download = d.originalFileName || 'document';
     a.click();
     URL.revokeObjectURL(url);
+    if (logFor === d.id) toggleLog(d); // refresh the open log to show this access
   }
 
   return (
@@ -213,14 +222,39 @@ function DocumentsTab({ patientId }: { patientId: number }) {
             <thead><tr><th>Title</th><th>Type</th><th>Size</th><th>Uploaded by</th><th>When</th><th></th></tr></thead>
             <tbody>
               {rows.map((d) => (
-                <tr key={d.id}>
+                <Fragment key={d.id}>
+                <tr>
                   <td style={{ fontWeight: 600 }}>{d.title || d.originalFileName || '—'}</td>
                   <td className="muted">{d.type.replace(/_/g, ' ')}</td>
                   <td className="muted">{d.sizeBytes ? Math.round(d.sizeBytes / 1024) + ' KB' : '—'}</td>
                   <td className="muted">{d.uploadedBy || 'system'}</td>
                   <td className="muted">{new Date(d.createdAt).toLocaleDateString()}</td>
-                  <td>{d.originalFileName && <span className="link" onClick={() => download(d)}>Download</span>}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {d.originalFileName && <span className="link" onClick={() => download(d)}>Download</span>}
+                    <span className="link" style={{ marginLeft: 12 }} onClick={() => toggleLog(d)}>
+                      {logFor === d.id ? 'Hide log' : 'Access log'}
+                    </span>
+                  </td>
                 </tr>
+                {logFor === d.id && (
+                  <tr>
+                    <td colSpan={6} style={{ background: 'var(--surface-2, #f8fafc)' }}>
+                      {accessLog.length === 0 ? <span className="muted">No access recorded yet.</span> : (
+                        <div style={{ fontSize: 12.5, lineHeight: 1.9 }}>
+                          {accessLog.map((al) => (
+                            <div key={al.id}>
+                              <span className="badge badge-normal" style={{ fontSize: 10 }}>{al.action}</span>{' '}
+                              by <strong>{al.accessedByName || 'unknown'}</strong>
+                              {al.accessedByRole && <span className="muted"> ({al.accessedByRole})</span>}
+                              {' · '}<span className="muted">{new Date(al.accessedAt).toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               ))}
             </tbody>
           </table>

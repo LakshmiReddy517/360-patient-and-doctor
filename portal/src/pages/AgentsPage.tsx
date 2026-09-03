@@ -12,6 +12,13 @@ export function agentBadge(s: string) {
   return STATUS_BADGE[s] || 'badge-open';
 }
 
+const EMT_LABEL: Record<string, string> = {
+  NONE: '—', EMT_BASIC: 'EMT-B', EMT_INTERMEDIATE: 'EMT-I', EMT_PARAMEDIC: 'Paramedic',
+};
+const EMT_BADGE: Record<string, string> = {
+  EMT_PARAMEDIC: 'badge-progress', EMT_INTERMEDIATE: 'badge-open', EMT_BASIC: 'badge-normal',
+};
+
 export default function AgentsPage() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [stats, setStats] = useState<DispatchStats | null>(null);
@@ -44,12 +51,20 @@ export default function AgentsPage() {
       <div className="card">
         <div className="table-wrap">
           <table className="data">
-            <thead><tr><th>Agent</th><th>Code</th><th>Skills</th><th>Languages</th><th>Status</th><th>Workload</th><th>Rating</th><th>Verified</th></tr></thead>
+            <thead><tr><th>Agent</th><th>Code</th><th>EMT / Cert</th><th>Blood</th><th>Skills</th><th>Languages</th><th>Status</th><th>Workload</th><th>Rating</th><th>Verified</th></tr></thead>
             <tbody>
               {agents.map((a) => (
                 <tr key={a.id}>
                   <td style={{ fontWeight: 600 }}>{a.fullName}<div className="muted" style={{ fontWeight: 400, fontSize: 11 }}>{a.mobile}</div></td>
                   <td className="mono">{a.employeeCode || '—'}</td>
+                  <td>
+                    {a.emtLevel && a.emtLevel !== 'NONE'
+                      ? <span className={'badge ' + (EMT_BADGE[a.emtLevel] || 'badge-normal')}>{EMT_LABEL[a.emtLevel]}</span>
+                      : <span className="muted">—</span>}
+                    {a.licenceNumber && <div className="muted mono" style={{ fontSize: 10, marginTop: 2 }}>{a.licenceNumber}</div>}
+                    {a.certificationExpiry && <div className="muted" style={{ fontSize: 10 }}>exp {a.certificationExpiry}</div>}
+                  </td>
+                  <td className="mono">{a.bloodGroup || '—'}</td>
                   <td><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{a.skills.map((s) => <span key={s} className="badge badge-normal" style={{ fontSize: 10 }}>{s}</span>)}</div></td>
                   <td className="muted" style={{ fontSize: 12 }}>{a.languages.join(', ')}</td>
                   <td><span className={'badge ' + agentBadge(a.status)}>{a.status.replace(/_/g, ' ')}</span></td>

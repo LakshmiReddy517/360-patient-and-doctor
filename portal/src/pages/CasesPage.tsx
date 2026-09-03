@@ -7,6 +7,13 @@ import { PriorityBadge, StatusBadge } from '../components/badges';
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CLOSED', 'CANCELLED'];
 
+function SlaBadge({ c }: { c: CaseSummary }) {
+  if (!c.slaTargetAt) return <span className="muted">—</span>;
+  if (c.slaBreached) return <span className="badge badge-emergency">⚠ Breached</span>;
+  if (c.slaMetAt) return <span className="badge badge-progress">✓ Met</span>;
+  return <span className="badge badge-hold">On track</span>;
+}
+
 export default function CasesPage() {
   const [cases, setCases] = useState<CaseSummary[]>([]);
   const [total, setTotal] = useState(0);
@@ -50,13 +57,13 @@ export default function CasesPage() {
         <div className="table-wrap">
           <table className="data">
             <thead>
-              <tr><th>Case #</th><th>Patient</th><th>Mobile</th><th>Title</th><th>Priority</th><th>Status</th><th>Owner</th></tr>
+              <tr><th>Case #</th><th>Patient</th><th>Mobile</th><th>Title</th><th>Priority</th><th>Status</th><th>SLA</th><th>Owner</th></tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={7} className="spinner">Loading…</td></tr>
+                <tr><td colSpan={8} className="spinner">Loading…</td></tr>
               ) : cases.length === 0 ? (
-                <tr><td colSpan={7} className="spinner">No cases found</td></tr>
+                <tr><td colSpan={8} className="spinner">No cases found</td></tr>
               ) : cases.map((c) => (
                 <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/cases/${c.id}`)}>
                   <td className="mono">{c.caseNumber}</td>
@@ -65,6 +72,7 @@ export default function CasesPage() {
                   <td className="muted">{c.title || '—'}</td>
                   <td><PriorityBadge priority={c.priority} emergency={c.emergency} /></td>
                   <td><StatusBadge status={c.status} /></td>
+                  <td><SlaBadge c={c} /></td>
                   <td className="muted">{c.assignedToName || 'Unassigned'}</td>
                 </tr>
               ))}

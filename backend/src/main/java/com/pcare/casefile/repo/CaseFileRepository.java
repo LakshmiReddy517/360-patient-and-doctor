@@ -25,6 +25,9 @@ public interface CaseFileRepository extends JpaRepository<CaseFile, Long> {
 
     long countByEmergencyTrueAndStatusNot(CaseStatus status);
 
+    /** Cases whose first-response SLA is unmet and already past its target — the live breach count. */
+    long countBySlaMetAtIsNullAndSlaTargetAtBefore(java.time.Instant now);
+
     @Query("select c from CaseFile c where "
             + "(:q is null or lower(c.caseNumber) like lower(concat('%', :q, '%')) "
             + "or lower(c.patientName) like lower(concat('%', :q, '%')) "

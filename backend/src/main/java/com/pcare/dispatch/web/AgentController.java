@@ -30,12 +30,15 @@ public class AgentController {
     private final AgentService agentService;
     private final AssignmentService assignmentService;
     private final com.pcare.live.TrackingService trackingService;
+    private final com.pcare.settlement.repo.EarningRepository earningRepository;
 
     public AgentController(AgentService agentService, AssignmentService assignmentService,
-                          com.pcare.live.TrackingService trackingService) {
+                          com.pcare.live.TrackingService trackingService,
+                          com.pcare.settlement.repo.EarningRepository earningRepository) {
         this.agentService = agentService;
         this.assignmentService = assignmentService;
         this.trackingService = trackingService;
+        this.earningRepository = earningRepository;
     }
 
     @Operation(summary = "Dispatch stats")
@@ -108,6 +111,34 @@ public class AgentController {
     @GetMapping("/{id}/assignments")
     public List<AssignmentDto> assignments(@PathVariable Long id) {
         return assignmentService.listByAgent(id);
+    }
+
+    @Operation(summary = "Agent earnings & settlement summary (agent app home)")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','FINANCE','AGENT')")
+    @GetMapping("/{id}/earnings")
+    public java.util.Map<String, Object> earnings(@PathVariable Long id) {
+        var all = earningRepository.findByPayeeTypeAndPayeeIdOrderByCreatedAtDesc(
+                com.pcare.settlement.domain.Settlement.PayeeType.AGENT, id);
+        java.math.BigDecimal total = all.stream().map(com.pcare.settlement.domain.Earning::getAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.math.BigDecimal settled = all.stream().filter(com.pcare.settlement.domain.Earning::isSettled)
+                .map(com.pcare.settlement.domain.Earning::getAmount)
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        java.util.Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("agentId", id);
+        m.put("totalEarned", total);
+        m.put("settled", settled);
+        m.put("pending", total.subtract(settled));
+        m.put("trips", all.size());
+        m.put("recent", all.stream().limit(10).map(e -> {
+            java.util.Map<String, Object> r = new java.util.LinkedHashMap<>();
+            r.put("caseNumber", e.getCaseNumber() == null ? "" : e.getCaseNumber());
+            r.put("amount", e.getAmount());
+            r.put("description", e.getDescription() == null ? "" : e.getDescription());
+            r.put("settled", e.isSettled());
+            return r;
+        }).toList());
+        return m;
     }
 
     @Operation(summary = "Live route (self -> pickup -> hospital) for one of the agent's cases (agent app map)")

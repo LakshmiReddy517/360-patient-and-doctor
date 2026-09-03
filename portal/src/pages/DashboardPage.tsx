@@ -47,6 +47,7 @@ export default function DashboardPage() {
         <div className="card stat"><div className="label">In Progress</div><div className="value">{stats?.inProgressCases}</div></div>
         <div className="card stat"><div className="label">On Hold</div><div className="value">{stats?.onHoldCases}</div></div>
         <div className="card stat"><div className="label">Emergencies</div><div className="value danger">{stats?.emergencies}</div></div>
+        <div className="card stat"><div className="label">SLA Breached</div><div className={'value' + ((stats?.slaBreached ?? 0) > 0 ? ' danger' : '')}>{stats?.slaBreached ?? 0}</div></div>
         <div className="card stat"><div className="label">Closed</div><div className="value">{stats?.closedCases}</div></div>
         <div className="card stat"><div className="label">Total Cases</div><div className="value">{stats?.totalCases}</div></div>
       </div>

@@ -25,8 +25,8 @@ public final class ServiceRequestDtos {
     }
 
     public record DestinationDto(
-            String destinationType, String hospitalName, String department, String doctorName,
-            String address, LocalDateTime appointmentAt) {
+            String destinationType, Long hospitalId, String hospitalName, String department, String doctorName,
+            String address, Double latitude, Double longitude, LocalDateTime appointmentAt) {
     }
 
     public record CreateRequest(

@@ -11,11 +11,15 @@ import com.pcare.billing.web.dto.BillingDtos.PackageItemDto;
 import com.pcare.billing.web.dto.BillingDtos.RateCardDto;
 import com.pcare.billing.web.dto.BillingDtos.UpsertPackageRequest;
 import com.pcare.billing.web.dto.BillingDtos.UpsertRateCardRequest;
+import com.pcare.billing.web.dto.BillingDtos.FareEstimate;
+import com.pcare.common.exception.BadRequestException;
 import com.pcare.common.exception.NotFoundException;
+import com.pcare.servicerequest.domain.ServiceType;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 
 /** Rate-card and package management — the configurable inputs to the pricing engine. */
@@ -43,8 +47,44 @@ public class CatalogService {
         rc.setLabel(req.label());
         rc.setUnit(req.unit());
         rc.setUnitRate(req.unitRate());
+        if (req.baseFare() != null) rc.setBaseFare(req.baseFare());
+        if (req.perKmRate() != null) rc.setPerKmRate(req.perKmRate());
+        if (req.emergencyMultiplier() != null) rc.setEmergencyMultiplier(req.emergencyMultiplier());
+        if (req.nightSurchargePercent() != null) rc.setNightSurchargePercent(req.nightSurchargePercent());
         rc.setActive(req.active() == null || req.active());
         return toRateDto(rateCardRepository.save(rc));
+    }
+
+    /**
+     * Multi-factor fare estimate (blueprint point 17): base fare + per-km distance charge,
+     * an emergency multiplier on the running subtotal, then a night-hours percentage surcharge.
+     */
+    @Transactional(readOnly = true)
+    public FareEstimate estimate(ServiceType serviceType, double distanceKm, boolean emergency, boolean night) {
+        RateCard rc = rateCardRepository.findByServiceType(serviceType)
+                .orElseThrow(() -> new BadRequestException("No rate card configured for " + serviceType));
+        BigDecimal base = rc.getBaseFare();
+        BigDecimal distanceCharge = rc.getPerKmRate().multiply(BigDecimal.valueOf(Math.max(0, distanceKm)))
+                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal subtotal = base.add(distanceCharge).setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal emergencySurcharge = BigDecimal.ZERO;
+        if (emergency && rc.getEmergencyMultiplier().compareTo(BigDecimal.ONE) > 0) {
+            emergencySurcharge = subtotal.multiply(rc.getEmergencyMultiplier().subtract(BigDecimal.ONE))
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+        BigDecimal afterEmergency = subtotal.add(emergencySurcharge);
+
+        BigDecimal nightSurcharge = BigDecimal.ZERO;
+        if (night && rc.getNightSurchargePercent().signum() > 0) {
+            nightSurcharge = afterEmergency.multiply(rc.getNightSurchargePercent())
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+        BigDecimal total = afterEmergency.add(nightSurcharge).setScale(2, RoundingMode.HALF_UP);
+
+        return new FareEstimate(serviceType, rc.getLabel(), distanceKm, emergency, night,
+                base.setScale(2, RoundingMode.HALF_UP), distanceCharge, subtotal,
+                emergencySurcharge, nightSurcharge, total, "INR");
     }
 
     // ---- Packages ----
@@ -90,7 +130,9 @@ public class CatalogService {
 
     // ---- mapping ----
     private RateCardDto toRateDto(RateCard rc) {
-        return new RateCardDto(rc.getId(), rc.getServiceType(), rc.getLabel(), rc.getUnit(), rc.getUnitRate(), rc.isActive());
+        return new RateCardDto(rc.getId(), rc.getServiceType(), rc.getLabel(), rc.getUnit(), rc.getUnitRate(),
+                rc.getBaseFare(), rc.getPerKmRate(), rc.getEmergencyMultiplier(), rc.getNightSurchargePercent(),
+                rc.isActive());
     }
 
     private PackageDto toPackageDto(ServicePackage p) {

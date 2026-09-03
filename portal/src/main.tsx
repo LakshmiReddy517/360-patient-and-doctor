@@ -24,6 +24,9 @@ import ComplaintsPage from './pages/ComplaintsPage';
 import IncidentsPage from './pages/IncidentsPage';
 import SettlementsPage from './pages/SettlementsPage';
 import LiveOperationsPage from './pages/LiveOperationsPage';
+import InventoryPage from './pages/InventoryPage';
+import AccommodationsPage from './pages/AccommodationsPage';
+import CashReconciliationPage from './pages/CashReconciliationPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -56,6 +59,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/complaints" element={<ComplaintsPage />} />
             <Route path="/incidents" element={<IncidentsPage />} />
             <Route path="/settlements" element={<SettlementsPage />} />
+            <Route path="/inventory" element={<InventoryPage />} />
+            <Route path="/accommodations" element={<AccommodationsPage />} />
+            <Route path="/cash" element={<CashReconciliationPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

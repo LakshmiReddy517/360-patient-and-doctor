@@ -239,14 +239,14 @@ public class DataSeeder implements CommandLineRunner {
 
     private void seedCatalog() {
         if (rateCardRepository.count() == 0) {
-            rate(ServiceType.PICKUP_DROP, "Pickup & Drop", "per trip", 1200);
-            rate(ServiceType.AMBULANCE, "Ambulance (BLS)", "per trip", 3500);
+            rate(ServiceType.PICKUP_DROP, "Pickup & Drop", "per trip", 1200, 500, 18, "1.30", 15);
+            rate(ServiceType.AMBULANCE, "Ambulance (BLS)", "per trip", 3500, 1500, 40, "1.50", 20);
             rate(ServiceType.HOSPITAL_ADMISSION, "Hospital Admission Assistance", "per case", 2500);
             rate(ServiceType.DOCTOR_APPOINTMENT, "Doctor Appointment Assistance", "per visit", 800);
             rate(ServiceType.CARETAKER, "Caretaker", "per day", 1500);
             rate(ServiceType.ACCOMMODATION, "Accommodation", "per night", 2200);
             rate(ServiceType.FOOD, "Food", "per day", 450);
-            rate(ServiceType.LOCAL_TRANSPORT, "Local Transport", "per trip", 600);
+            rate(ServiceType.LOCAL_TRANSPORT, "Local Transport", "per trip", 600, 200, 15, "1.20", 10);
             rate(ServiceType.COMPLETE_CARE, "Complete Care", "per day", 4500);
             rate(ServiceType.FOLLOW_UP, "Follow-up", "per visit", 500);
             log.info("Seeded {} rate cards", rateCardRepository.count());
@@ -278,19 +278,25 @@ public class DataSeeder implements CommandLineRunner {
         Long agentUserId = userRepository.findByUsernameIgnoreCase("agent").map(u -> u.getId()).orElse(null);
         Agent ravi = agentService.create(new UpsertAgentRequest(
                 agentUserId, "Ravi Kumar", "9800000001", "ravi@care.example", "AG-001",
-                Set.of("Wheelchair", "Elderly Care"), Set.of("English", "Hindi", "Kannada"), "Day", true));
+                Set.of("Wheelchair", "Elderly Care"), Set.of("English", "Hindi", "Kannada"), "Day", true,
+                com.pcare.dispatch.domain.EmtLevel.EMT_PARAMEDIC, "O+", "EMT-KA-10021",
+                java.time.LocalDate.of(2027, 6, 30)));
         agentService.updateLocation(ravi.getId(), 12.9716, 77.5946);
         agentService.setStatus(ravi.getId(), AgentStatus.AVAILABLE);
 
         Agent asha = agentService.create(new UpsertAgentRequest(
                 null, "Asha Menon", "9800000002", "asha@care.example", "AG-002",
-                Set.of("First Aid", "Airport Assistance"), Set.of("English", "Malayalam", "Tamil"), "Day", true));
+                Set.of("First Aid", "Airport Assistance"), Set.of("English", "Malayalam", "Tamil"), "Day", true,
+                com.pcare.dispatch.domain.EmtLevel.EMT_BASIC, "B+", "EMT-KA-10044",
+                java.time.LocalDate.of(2026, 12, 31)));
         agentService.updateLocation(asha.getId(), 12.9352, 77.6245);
         agentService.setStatus(asha.getId(), AgentStatus.AVAILABLE);
 
         agentService.create(new UpsertAgentRequest(
                 null, "Mohan Das", "9800000003", "mohan@care.example", "AG-003",
-                Set.of("Stretcher", "Elderly Care"), Set.of("Hindi", "Kannada"), "Night", false));
+                Set.of("Stretcher", "Elderly Care"), Set.of("Hindi", "Kannada"), "Night", false,
+                com.pcare.dispatch.domain.EmtLevel.EMT_INTERMEDIATE, "A+", "EMT-KA-10078",
+                java.time.LocalDate.of(2027, 3, 15)));
         log.info("Seeded {} agents", agentRepository.count());
     }
 
@@ -412,7 +418,16 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void rate(ServiceType type, String label, String unit, int amount) {
-        catalogService.upsertRateCard(new UpsertRateCardRequest(type, label, unit, new BigDecimal(amount), true));
+        catalogService.upsertRateCard(new UpsertRateCardRequest(type, label, unit, new BigDecimal(amount),
+                null, null, null, null, true));
+    }
+
+    /** Rate card with multi-factor pricing (blueprint point 17): base fare, per-km, emergency ×, night %. */
+    private void rate(ServiceType type, String label, String unit, int amount,
+                      int baseFare, int perKm, String emgMult, int nightPct) {
+        catalogService.upsertRateCard(new UpsertRateCardRequest(type, label, unit, new BigDecimal(amount),
+                new BigDecimal(baseFare), new BigDecimal(perKm), new BigDecimal(emgMult),
+                new BigDecimal(nightPct), true));
     }
 
     private void seedRequests() {

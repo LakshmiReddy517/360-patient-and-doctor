@@ -28,13 +28,26 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final FileStorageService fileStorage;
     private final PatientRepository patientRepository;
+    private final org.springframework.context.ApplicationEventPublisher events;
 
     public UserService(UserRepository userRepository, PasswordEncoder passwordEncoder, FileStorageService fileStorage,
-                       PatientRepository patientRepository) {
+                       PatientRepository patientRepository, org.springframework.context.ApplicationEventPublisher events) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.fileStorage = fileStorage;
         this.patientRepository = patientRepository;
+        this.events = events;
+    }
+
+    /** Sends a welcome / ID-verified notification when a patient self-registers. */
+    private void welcomeNotify(User user) {
+        if (user.getMobile() == null && user.getEmail() == null) return;
+        String msg = user.isIdVerified()
+                ? "Welcome to 360 Patient Care! Your identity is verified — you can now book care services."
+                : "Welcome to 360 Patient Care! Your account is ready.";
+        events.publishEvent(new com.pcare.common.event.NotificationRequestedEvent(
+                user.getId(), user.getFullName(), user.getMobile() != null ? user.getMobile() : user.getEmail(),
+                "WHATSAPP", "GENERAL", "Welcome to 360 Patient Care", msg, null));
     }
 
     /**
@@ -80,6 +93,7 @@ public class UserService {
         user.addRole(Role.PATIENT);
         User saved = userRepository.save(user);
         linkPatient(saved);
+        welcomeNotify(saved);
         return saved;
     }
 
@@ -101,6 +115,7 @@ public class UserService {
         user.addRole(Role.PATIENT);
         User saved = userRepository.save(user);
         linkPatient(saved);
+        welcomeNotify(saved);
         return saved;
     }
 

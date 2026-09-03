@@ -23,12 +23,21 @@ public final class BillingDtos {
 
     // ---- Rate cards ----
     public record RateCardDto(Long id, ServiceType serviceType, String label, String unit,
-                              BigDecimal unitRate, boolean active) {
+                              BigDecimal unitRate, BigDecimal baseFare, BigDecimal perKmRate,
+                              BigDecimal emergencyMultiplier, BigDecimal nightSurchargePercent, boolean active) {
     }
 
     public record UpsertRateCardRequest(
             @NotNull ServiceType serviceType, @NotBlank String label, @NotBlank String unit,
-            @NotNull BigDecimal unitRate, Boolean active) {
+            @NotNull BigDecimal unitRate, BigDecimal baseFare, BigDecimal perKmRate,
+            BigDecimal emergencyMultiplier, BigDecimal nightSurchargePercent, Boolean active) {
+    }
+
+    /** Multi-factor fare estimate breakdown (blueprint point 17). */
+    public record FareEstimate(
+            ServiceType serviceType, String label, double distanceKm, boolean emergency, boolean night,
+            BigDecimal baseFare, BigDecimal distanceCharge, BigDecimal subtotal,
+            BigDecimal emergencySurcharge, BigDecimal nightSurcharge, BigDecimal total, String currency) {
     }
 
     // ---- Packages ----

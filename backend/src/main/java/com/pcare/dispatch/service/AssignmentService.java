@@ -25,15 +25,20 @@ public class AssignmentService {
 
     private static final SecureRandom RANDOM = new SecureRandom();
 
+    /** Flat agent fee accrued per completed trip (a simple, configurable earning rule). */
+    private static final java.math.BigDecimal AGENT_TRIP_FEE = new java.math.BigDecimal("300");
+
     private final AssignmentRepository assignmentRepository;
     private final AgentRepository agentRepository;
     private final CaseService caseService;
+    private final com.pcare.settlement.service.SettlementService settlementService;
 
     public AssignmentService(AssignmentRepository assignmentRepository, AgentRepository agentRepository,
-                             CaseService caseService) {
+                             CaseService caseService, com.pcare.settlement.service.SettlementService settlementService) {
         this.assignmentRepository = assignmentRepository;
         this.agentRepository = agentRepository;
         this.caseService = caseService;
+        this.settlementService = settlementService;
     }
 
     @Transactional
@@ -128,6 +133,10 @@ public class AssignmentService {
         releaseAgent(a.getAgentId());
         caseService.addEvent(a.getCaseId(), CaseEventType.CARE_ACTIVITY,
                 "Patient handed over at hospital — assignment completed", "DISPATCH");
+        // Auto-accrue the agent's earning for the completed trip (feeds settlement).
+        settlementService.accrue(new com.pcare.settlement.web.dto.SettlementDtos.AccrueEarningRequest(
+                com.pcare.settlement.domain.Settlement.PayeeType.AGENT, a.getAgentId(), a.getAgentName(),
+                a.getCaseId(), a.getCaseNumber(), "Trip completed — " + a.getCaseNumber(), AGENT_TRIP_FEE));
         return a;
     }
 

@@ -58,6 +58,9 @@ public final class CaseDtos {
             boolean emergency,
             Long assignedToUserId,
             String assignedToName,
+            Instant slaTargetAt,
+            Instant slaMetAt,
+            boolean slaBreached,
             Instant createdAt,
             Instant updatedAt) {
     }
@@ -83,6 +86,7 @@ public final class CaseDtos {
             long onHoldCases,
             long emergencies,
             long closedCases,
-            long totalCases) {
+            long totalCases,
+            long slaBreached) {
     }
 }

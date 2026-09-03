@@ -104,6 +104,12 @@ public final class PatientDtos {
             Long sizeBytes, boolean shareable, String uploadedBy, Instant createdAt) {
     }
 
+    /** One document-access audit entry (blueprint point 14). */
+    public record DocumentAccessDto(
+            Long id, Long documentId, Long patientId, String action,
+            Long accessedByUserId, String accessedByName, String accessedByRole, Instant accessedAt) {
+    }
+
     // ---- Registration wizard (one-shot create) ----
     public record RegistrationWizardRequest(
             @Valid UpsertPatientRequest profile,

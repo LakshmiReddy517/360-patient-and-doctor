@@ -10,6 +10,7 @@ import CaseHealthcarePanel from './CaseHealthcarePanel';
 import CaseCarePanel from './CaseCarePanel';
 import CaseClinicalPanel from './CaseClinicalPanel';
 import CaseServicePlanPanel from './CaseServicePlanPanel';
+import CaseTripPanel from './CaseTripPanel';
 
 const STATUSES: CaseStatus[] = ['OPEN', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED', 'CLOSED', 'CANCELLED'];
 
@@ -21,7 +22,7 @@ export default function CaseDetailPage() {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'overview' | 'plan' | 'dispatch' | 'healthcare' | 'clinical' | 'care' | 'finance'>('overview');
+  const [tab, setTab] = useState<'overview' | 'plan' | 'trip' | 'dispatch' | 'healthcare' | 'clinical' | 'care' | 'finance'>('overview');
 
   const load = useCallback(() => {
     setLoading(true);
@@ -75,6 +76,7 @@ export default function CaseDetailPage() {
       <div className="toolbar" style={{ gap: 4 }}>
         <button className={'btn btn-sm' + (tab === 'overview' ? ' btn-primary' : '')} onClick={() => setTab('overview')}>Overview</button>
         <button className={'btn btn-sm' + (tab === 'plan' ? ' btn-primary' : '')} onClick={() => setTab('plan')}>Service Plan</button>
+        <button className={'btn btn-sm' + (tab === 'trip' ? ' btn-primary' : '')} onClick={() => setTab('trip')}>Trip</button>
         <button className={'btn btn-sm' + (tab === 'dispatch' ? ' btn-primary' : '')} onClick={() => setTab('dispatch')}>Dispatch</button>
         <button className={'btn btn-sm' + (tab === 'healthcare' ? ' btn-primary' : '')} onClick={() => setTab('healthcare')}>Healthcare</button>
         <button className={'btn btn-sm' + (tab === 'clinical' ? ' btn-primary' : '')} onClick={() => setTab('clinical')}>Clinical</button>
@@ -83,6 +85,7 @@ export default function CaseDetailPage() {
       </div>
 
       {tab === 'plan' && <CaseServicePlanPanel caseId={c.id} />}
+      {tab === 'trip' && <CaseTripPanel caseId={c.id} />}
       {tab === 'dispatch' && <CaseDispatchPanel caseId={c.id} />}
       {tab === 'healthcare' && <CaseHealthcarePanel caseId={c.id} />}
       {tab === 'clinical' && <CaseClinicalPanel caseId={c.id} />}

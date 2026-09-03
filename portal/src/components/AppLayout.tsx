@@ -34,12 +34,15 @@ const NAV: { group: string; items: { to: string; label: string; icon: string; so
     items: [
       { to: '/ambulances', label: 'Ambulance Fleet', icon: '⛑' },
       { to: '/caretakers', label: 'Caretakers', icon: '♥' },
+      { to: '/inventory', label: 'Equipment Inventory', icon: '⚙' },
+      { to: '/accommodations', label: 'Accommodation', icon: '⌂' },
     ],
   },
   {
     group: 'Finance',
     items: [
       { to: '/pricing', label: 'Packages & Pricing', icon: '₹', fin: true },
+      { to: '/cash', label: 'Cash Reconciliation', icon: '◉', fin: true },
       { to: '/settlements', label: 'Settlements', icon: '◈', fin: true },
     ],
   },
