@@ -63,6 +63,16 @@ interface ApiService {
     @GET("api/v1/me/records")
     suspend fun myRecords(): MyRecordsDto
 
+    @GET("api/v1/me/documents")
+    suspend fun myDocuments(): List<MyDocumentDto>
+
+    // Notification preferences (blueprint point 48)
+    @GET("api/v1/notifications/preferences/{userId}")
+    suspend fun notificationPreferences(@Path("userId") userId: Long): List<NotificationPreferenceDto>
+
+    @PUT("api/v1/notifications/preferences")
+    suspend fun updatePreference(@Body body: UpsertPreferenceRequest): NotificationPreferenceDto
+
     @GET("api/v1/me/cases/{id}")
     suspend fun myCase(@Path("id") id: Long): MyCaseDetail
 
@@ -84,6 +94,9 @@ interface ApiService {
 
     @GET("api/v1/agents/{id}/assignments")
     suspend fun agentAssignments(@Path("id") id: Long): List<AssignmentDto>
+
+    @GET("api/v1/agents/{id}/earnings")
+    suspend fun agentEarnings(@Path("id") id: Long): AgentEarningsDto
 
     @GET("api/v1/agents/{agentId}/cases/{caseId}/route")
     suspend fun agentCaseRoute(@Path("agentId") agentId: Long, @Path("caseId") caseId: Long): CaseRouteDto

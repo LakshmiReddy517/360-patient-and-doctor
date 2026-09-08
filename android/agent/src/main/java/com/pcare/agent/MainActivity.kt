@@ -137,13 +137,18 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
     val api = remember { ApiClient.service(session) }
     var agent by remember { mutableStateOf<AgentDto?>(null) }
     var jobs by remember { mutableStateOf<List<AssignmentDto>>(emptyList()) }
+    var earnings by remember { mutableStateOf<AgentEarningsDto?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var navCase by remember { mutableStateOf<Long?>(null) }
 
     fun refresh() {
         scope.launch {
-            try { val a = api.myAgent(); agent = a; jobs = api.agentAssignments(a.id); error = null }
+            try {
+                val a = api.myAgent(); agent = a; jobs = api.agentAssignments(a.id)
+                try { earnings = api.agentEarnings(a.id) } catch (_: Exception) {}
+                error = null
+            }
             catch (e: Exception) { error = e.message } finally { loading = false }
         }
     }
@@ -152,7 +157,10 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
     LaunchedEffect(Unit) {
         while (true) {
             kotlinx.coroutines.delay(4000)
-            try { val a = api.myAgent(); agent = a; jobs = api.agentAssignments(a.id) } catch (_: Exception) {}
+            try {
+                val a = api.myAgent(); agent = a; jobs = api.agentAssignments(a.id)
+                try { earnings = api.agentEarnings(a.id) } catch (_: Exception) {}
+            } catch (_: Exception) {}
         }
     }
 
@@ -222,6 +230,7 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
                 StatCard("Active", "$active", Amber, Modifier.weight(1f))
                 StatCard("Completed", "$completed", Green, Modifier.weight(1f))
             }
+            earnings?.let { EarningsCard(it) }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("My jobs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
                 Surface(shape = RoundedCornerShape(50), color = TealDeep.copy(alpha = 0.12f)) {
@@ -250,6 +259,48 @@ private fun StatCard(label: String, value: String, color: Color, modifier: Modif
             Text(value, color = color, fontSize = 23.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.5).sp)
             Spacer(Modifier.height(2.dp))
             Text(label.uppercase(), color = Muted, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.5.sp)
+        }
+    }
+}
+
+@Composable
+private fun EarningsCard(e: AgentEarningsDto) {
+    fun money(v: Double) = "₹" + (if (v == v.toLong().toDouble()) v.toLong().toString() else "%.2f".format(v))
+    ElevatedCard(shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(12.dp), color = TealDeep.copy(alpha = 0.10f)) {
+                    Icon(Icons.Filled.AccountBalanceWallet, null, tint = TealDeep, modifier = Modifier.padding(10.dp).size(20.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Text("Earnings & settlement", fontWeight = FontWeight.Bold, color = Ink, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                Text("${e.trips} trips", color = Muted, fontSize = 12.sp)
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                StatCard("Earned", money(e.totalEarned), TealDeep, Modifier.weight(1f))
+                StatCard("Settled", money(e.settled), Green, Modifier.weight(1f))
+                StatCard("Pending", money(e.pending), Amber, Modifier.weight(1f))
+            }
+            if (e.recent.isNotEmpty()) {
+                Spacer(Modifier.height(12.dp))
+                Text("Recent", color = Muted, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                e.recent.take(5).forEach { r ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(r.caseNumber ?: "—", color = Ink, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+                            r.description?.let { Text(it, color = Muted, fontSize = 11.sp, maxLines = 1) }
+                        }
+                        Text(money(r.amount), color = Ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Surface(shape = RoundedCornerShape(50), color = (if (r.settled) Green else Amber).copy(alpha = 0.12f)) {
+                            Text(if (r.settled) "settled" else "pending", color = if (r.settled) Green else Amber,
+                                fontSize = 9.5.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(8.dp, 3.dp))
+                        }
+                    }
+                }
+            }
         }
     }
 }

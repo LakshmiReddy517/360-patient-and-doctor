@@ -48,12 +48,14 @@ public class MeController {
     private final PaymentService paymentService;
     private final com.pcare.live.TrackingService trackingService;
     private final com.pcare.patient.repo.PatientRepository patientRepository;
+    private final com.pcare.patient.service.PatientService patientService;
 
     public MeController(ServiceRequestRepository requestRepository, CaseService caseService,
                         com.pcare.billing.service.QuoteService quoteService, AppointmentService appointmentService,
                         ClinicalService clinicalService, PaymentService paymentService,
                         com.pcare.live.TrackingService trackingService,
-                        com.pcare.patient.repo.PatientRepository patientRepository) {
+                        com.pcare.patient.repo.PatientRepository patientRepository,
+                        com.pcare.patient.service.PatientService patientService) {
         this.requestRepository = requestRepository;
         this.caseService = caseService;
         this.quoteService = quoteService;
@@ -62,6 +64,7 @@ public class MeController {
         this.paymentService = paymentService;
         this.trackingService = trackingService;
         this.patientRepository = patientRepository;
+        this.patientService = patientService;
     }
 
     @Operation(summary = "My patient master profile (the Patient record linked to my account)")
@@ -100,6 +103,16 @@ public class MeController {
         Set<Long> ids = new LinkedHashSet<>();
         for (ServiceRequest r : myRequests()) if (r.getCaseId() != null) ids.add(r.getCaseId());
         return ids;
+    }
+
+    @Operation(summary = "My uploaded medical documents (records screen)")
+    @GetMapping("/documents")
+    public List<com.pcare.patient.web.dto.PatientDtos.MedicalDocumentDto> myDocuments() {
+        Long uid = com.pcare.security.SecurityUtils.currentUserId()
+                .orElseThrow(() -> new NotFoundException("Not authenticated"));
+        return patientRepository.findByUserId(uid)
+                .map(p -> patientService.listDocuments(p.getId()))
+                .orElse(java.util.List.of());
     }
 
     @Operation(summary = "My cases (from my service requests)")

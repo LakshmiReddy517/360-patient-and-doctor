@@ -708,28 +708,41 @@ private fun NearbyScreen(session: Session, onBack: () -> Unit) {
 private fun RecordsScreen(session: Session, onBack: () -> Unit) {
     val api = remember { ApiClient.service(session) }
     var records by remember { mutableStateOf<MyRecordsDto?>(null) }
+    var documents by remember { mutableStateOf<List<MyDocumentDto>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
-    LaunchedEffect(Unit) { try { records = api.myRecords() } catch (_: Exception) {} finally { loading = false } }
+    LaunchedEffect(Unit) {
+        try { records = api.myRecords() } catch (_: Exception) {}
+        try { documents = api.myDocuments() } catch (_: Exception) {}
+        loading = false
+    }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
-                Column { Text("Medical records", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Your appointments & medicines", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
+                Column { Text("Medical records", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Appointments, medicines & documents", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
             }
         }
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
             if (loading) Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Teal) }
             val r = records
-            if (!loading && r != null) {
-                if (r.appointments.isEmpty() && r.medicines.isEmpty())
-                    EmptyState(Icons.Filled.Folder, "No records yet", "Appointments and prescriptions will appear here")
-                if (r.appointments.isNotEmpty()) {
+            if (!loading) {
+                if ((r == null || (r.appointments.isEmpty() && r.medicines.isEmpty())) && documents.isEmpty())
+                    EmptyState(Icons.Filled.Folder, "No records yet", "Appointments, prescriptions and documents will appear here")
+                if (r != null && r.appointments.isNotEmpty()) {
                     SectionTitle("Appointments")
                     r.appointments.forEach { a -> RowCard(Icons.Filled.EventNote, a.doctorName ?: "Doctor", "${a.department ?: ""} · ${a.status.replace('_', ' ')}" + (a.prescription?.let { " · Rx: $it" } ?: "")) }
                 }
-                if (r.medicines.isNotEmpty()) {
+                if (r != null && r.medicines.isNotEmpty()) {
                     Spacer(Modifier.height(16.dp)); SectionTitle("Medicines")
                     r.medicines.forEach { m -> RowCard(Icons.Filled.Medication, "${m.name} ${m.dose ?: ""}", "${m.frequency ?: ""} · ${m.foodInstruction ?: ""}") }
+                }
+                if (documents.isNotEmpty()) {
+                    Spacer(Modifier.height(16.dp)); SectionTitle("Documents")
+                    documents.forEach { d ->
+                        val kb = d.sizeBytes?.let { " · ${it / 1024} KB" } ?: ""
+                        RowCard(Icons.Filled.Description, d.title ?: d.originalFileName ?: "Document",
+                            "${d.type.replace('_', ' ')}" + (d.documentDate?.let { " · $it" } ?: "") + kb)
+                    }
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -786,6 +799,8 @@ private fun SupportScreen(onBack: () -> Unit) {
 @Composable
 private fun ProfileTab(session: Session, onLogout: () -> Unit) {
     var showLang by remember { mutableStateOf(false) }
+    var showPrefs by remember { mutableStateOf(false) }
+    if (showPrefs) { NotificationPreferencesScreen(session) { showPrefs = false }; return }
     if (showLang) LanguageDialog(session) { showLang = false }
     Column(Modifier.fillMaxSize()) {
         GradientHeader(session.userName ?: "Patient", "Profile", session.userName ?: "P")
@@ -804,12 +819,74 @@ private fun ProfileTab(session: Session, onLogout: () -> Unit) {
                     Icon(Icons.Filled.ChevronRight, null, tint = Muted)
                 }
             }
+            Spacer(Modifier.height(12.dp))
+            ElevatedCard(onClick = { showPrefs = true }, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Filled.Notifications, null, tint = Teal, modifier = Modifier.size(20.dp)); Spacer(Modifier.width(12.dp))
+                    Column(Modifier.weight(1f)) { Text("Notification preferences", fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp); Text("Choose what updates you receive", color = Muted, fontSize = 12.sp) }
+                    Icon(Icons.Filled.ChevronRight, null, tint = Muted)
+                }
+            }
             Spacer(Modifier.height(16.dp))
             OutlinedButton(onClick = onLogout, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(50.dp)) {
                 Icon(Icons.Filled.Logout, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Logout")
             }
             Spacer(Modifier.height(20.dp))
             Text("Developed by pvalr", color = Muted, fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+        }
+    }
+}
+
+// ---------------- NOTIFICATION PREFERENCES (blueprint point 48) ----------------
+private val PREF_CATEGORIES = listOf("APPOINTMENT", "PAYMENT", "PICKUP", "MEDICAL", "MEDICATION", "EMERGENCY", "MARKETING", "GENERAL")
+
+@Composable
+private fun NotificationPreferencesScreen(session: Session, onBack: () -> Unit) {
+    val api = remember { ApiClient.service(session) }
+    val scope = rememberCoroutineScope()
+    var prefs by remember { mutableStateOf<Map<String, NotificationPreferenceDto>>(emptyMap()) }
+    var loading by remember { mutableStateOf(true) }
+
+    fun reload() {
+        scope.launch {
+            try { prefs = api.notificationPreferences(session.userId).associateBy { it.category } }
+            catch (_: Exception) {} finally { loading = false }
+        }
+    }
+    LaunchedEffect(Unit) { reload() }
+
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+            Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
+                Column { Text("Notification preferences", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Updates you want to receive", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
+            }
+        }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+            if (loading) Box(Modifier.fillMaxWidth().padding(30.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Teal) }
+            if (!loading) {
+                PREF_CATEGORIES.forEach { cat ->
+                    val existing = prefs[cat]
+                    val enabled = existing?.enabled ?: (cat != "MARKETING")
+                    val channels = existing?.channels ?: listOf("WHATSAPP", "SMS")
+                    ElevatedCard(shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(cat.lowercase().replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, color = Ink, fontSize = 14.sp)
+                                Text(channels.joinToString(", ") { it.lowercase() }, color = Muted, fontSize = 11.sp)
+                            }
+                            Switch(checked = enabled, onCheckedChange = { on ->
+                                scope.launch {
+                                    try { api.updatePreference(UpsertPreferenceRequest(session.userId, cat, on, channels)); reload() }
+                                    catch (_: Exception) {}
+                                }
+                            })
+                        }
+                    }
+                }
+                Text("Emergency alerts are always delivered for your safety.", color = Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            Spacer(Modifier.height(20.dp))
         }
     }
 }

@@ -76,6 +76,49 @@ data class LocationRequest(val latitude: Double, val longitude: Double)
 data class AssignmentStatusRequest(val status: String, val note: String? = null)
 data class VerifyOtpRequest(val otp: String)
 
+// ---- Agent earnings (blueprint point 22) ----
+data class EarningItem(
+    val caseNumber: String?,
+    val amount: Double,
+    val description: String?,
+    val settled: Boolean,
+)
+data class AgentEarningsDto(
+    val agentId: Long,
+    val totalEarned: Double = 0.0,
+    val settled: Double = 0.0,
+    val pending: Double = 0.0,
+    val trips: Int = 0,
+    val recent: List<EarningItem> = emptyList(),
+)
+
+// ---- Notification preferences (blueprint point 48) ----
+data class NotificationPreferenceDto(
+    val id: Long?,
+    val userId: Long,
+    val category: String,
+    val enabled: Boolean,
+    val channels: List<String> = emptyList(),
+)
+data class UpsertPreferenceRequest(
+    val userId: Long,
+    val category: String,
+    val enabled: Boolean,
+    val channels: List<String> = emptyList(),
+)
+
+// ---- My medical documents (blueprint point 53) ----
+data class MyDocumentDto(
+    val id: Long,
+    val type: String,
+    val title: String?,
+    val documentDate: String?,
+    val source: String?,
+    val originalFileName: String?,
+    val sizeBytes: Long?,
+    val createdAt: String?,
+)
+
 // ---- Patient App: my cases / records / payments ----
 data class CaseSummaryLite(
     val id: Long,
