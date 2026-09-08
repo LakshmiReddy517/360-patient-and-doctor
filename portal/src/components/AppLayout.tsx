@@ -14,19 +14,21 @@ const NAV: { group: string; items: { to: string; label: string; icon: string; so
       { to: '/requests', label: 'Service Requests', icon: '✦', fin: true },
       { to: '/cases', label: 'Cases', icon: '☰', fin: true },
       { to: '/agents', label: 'Agents & Dispatch', icon: '➤' },
+      { to: '/service-advisor', label: 'Service Advisor', icon: '✧' },
     ],
   },
   {
     group: 'Patient Management',
     items: [
       { to: '/patients', label: 'Patients', icon: '☺' },
-      { to: '/consent', label: 'Consent', icon: '✓', soon: true },
+      { to: '/consent', label: 'Consent', icon: '✓' },
     ],
   },
   {
     group: 'Healthcare',
     items: [
       { to: '/hospitals', label: 'Hospitals', icon: '✚' },
+      { to: '/doctors', label: 'Doctors', icon: '⚕' },
     ],
   },
   {
@@ -49,6 +51,10 @@ const NAV: { group: string; items: { to: string; label: string; icon: string; so
   {
     group: 'Communication',
     items: [{ to: '/notifications', label: 'Notifications', icon: '✉', fin: true }],
+  },
+  {
+    group: 'Reports',
+    items: [{ to: '/reports', label: 'Operational Reports', icon: '▤', fin: true }],
   },
   {
     group: 'Support',

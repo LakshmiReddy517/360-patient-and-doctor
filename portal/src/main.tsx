@@ -18,6 +18,7 @@ import PricingPage from './pages/PricingPage';
 import AgentsPage from './pages/AgentsPage';
 import HospitalsPage from './pages/HospitalsPage';
 import AmbulancesPage from './pages/AmbulancesPage';
+import DoctorsPage from './pages/DoctorsPage';
 import CaretakersPage from './pages/CaretakersPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ComplaintsPage from './pages/ComplaintsPage';
@@ -27,6 +28,9 @@ import LiveOperationsPage from './pages/LiveOperationsPage';
 import InventoryPage from './pages/InventoryPage';
 import AccommodationsPage from './pages/AccommodationsPage';
 import CashReconciliationPage from './pages/CashReconciliationPage';
+import ConsentPage from './pages/ConsentPage';
+import ReportsPage from './pages/ReportsPage';
+import ServiceAdvisorPage from './pages/ServiceAdvisorPage';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -53,6 +57,7 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/pricing" element={<PricingPage />} />
             <Route path="/agents" element={<AgentsPage />} />
             <Route path="/hospitals" element={<HospitalsPage />} />
+            <Route path="/doctors" element={<DoctorsPage />} />
             <Route path="/ambulances" element={<AmbulancesPage />} />
             <Route path="/caretakers" element={<CaretakersPage />} />
             <Route path="/notifications" element={<NotificationsPage />} />
@@ -62,6 +67,9 @@ createRoot(document.getElementById('root')!).render(
             <Route path="/inventory" element={<InventoryPage />} />
             <Route path="/accommodations" element={<AccommodationsPage />} />
             <Route path="/cash" element={<CashReconciliationPage />} />
+            <Route path="/consent" element={<ConsentPage />} />
+            <Route path="/service-advisor" element={<ServiceAdvisorPage />} />
+            <Route path="/reports" element={<ReportsPage />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

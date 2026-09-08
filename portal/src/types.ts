@@ -66,6 +66,26 @@ export interface DashboardStats {
   slaBreached: number;
 }
 
+export interface OpsDashboard {
+  newRequests: number;
+  openCases: number;
+  inProgressCases: number;
+  onHoldCases: number;
+  emergencies: number;
+  closedCases: number;
+  totalCases: number;
+  agentsOnline: number;
+  agentsAvailable: number;
+  agentsOnJob: number;
+  agentsOffline: number;
+  ambulancesTotal: number;
+  ambulancesAvailable: number;
+  ambulancesOnTrip: number;
+  ambulancesMaintenance: number;
+  activeDispatches: number;
+  pickupsToday: number;
+}
+
 // ---- Patient module ----
 export type Gender = 'MALE' | 'FEMALE' | 'OTHER' | 'UNDISCLOSED';
 export type GuardianPermission =

@@ -1,7 +1,7 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api, apiErrorMessage } from '../api/client';
-import type { Consent, DocumentAccess, Guardian, MedicalDocument, MedicalProfile, Patient } from '../types';
+import type { Consent, ConsentStatus, DocumentAccess, Guardian, MedicalDocument, MedicalProfile, Patient } from '../types';
 
 type Tab = 'profile' | 'medical' | 'guardians' | 'consent' | 'documents';
 
@@ -135,32 +135,85 @@ function GuardiansTab({ patientId }: { patientId: number }) {
   );
 }
 
+const CONSENT_STATUS_BADGE: Record<ConsentStatus, string> = {
+  GRANTED: 'badge-progress', REVOKED: 'badge-closed', EXPIRED: 'badge-hold',
+};
+
 function ConsentTab({ patientId }: { patientId: number }) {
   const [rows, setRows] = useState<Consent[]>([]);
+  const [scope, setScope] = useState('');
+  const [grantedTo, setGrantedTo] = useState('');
+  const [purpose, setPurpose] = useState('');
+  const [validFrom, setValidFrom] = useState('');
+  const [validTo, setValidTo] = useState('');
+  const [status, setStatus] = useState<ConsentStatus>('GRANTED');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
   const load = useCallback(() => { api.get<Consent[]>(`/patients/${patientId}/consents`).then((r) => setRows(r.data)); }, [patientId]);
   useEffect(() => { load(); }, [load]);
-  async function revoke(cid: number) {
-    await api.post(`/patients/${patientId}/consents/${cid}/revoke`);
-    load();
+
+  async function grant() {
+    setSaving(true); setError('');
+    try {
+      await api.post(`/patients/${patientId}/consents`, {
+        scope, grantedTo, purpose,
+        validFrom: validFrom || null, validTo: validTo || null, status,
+      });
+      setScope(''); setGrantedTo(''); setPurpose(''); setValidFrom(''); setValidTo(''); setStatus('GRANTED');
+      load();
+    } catch (e) { setError(apiErrorMessage(e)); } finally { setSaving(false); }
   }
+
+  async function revoke(cid: number) {
+    setError('');
+    try { await api.post(`/patients/${patientId}/consents/${cid}/revoke`); load(); }
+    catch (e) { setError(apiErrorMessage(e)); }
+  }
+
   return (
-    <div className="card">
-      <div className="table-wrap">
-        <table className="data">
-          <thead><tr><th>Scope</th><th>Granted to</th><th>Purpose</th><th>Valid</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            {rows.length === 0 ? <tr><td colSpan={6} className="spinner">No consent records</td></tr> : rows.map((c) => (
-              <tr key={c.id}>
-                <td style={{ fontWeight: 600 }}>{c.scope}</td>
-                <td>{c.grantedTo}</td>
-                <td className="muted">{c.purpose || '—'}</td>
-                <td className="muted">{c.validFrom || '—'} → {c.validTo || '—'}</td>
-                <td><span className={'badge ' + (c.status === 'GRANTED' ? 'badge-progress' : 'badge-closed')}>{c.status}</span></td>
-                <td>{c.status === 'GRANTED' && <button className="btn btn-sm btn-danger" onClick={() => revoke(c.id)}>Revoke</button>}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div>
+      <div className="card">
+        <div className="table-wrap">
+          <table className="data">
+            <thead><tr><th>Scope</th><th>Granted to</th><th>Purpose</th><th>Valid</th><th>Status</th><th>Created</th><th></th></tr></thead>
+            <tbody>
+              {rows.length === 0 ? <tr><td colSpan={7} className="spinner">No consent records</td></tr> : rows.map((c) => (
+                <tr key={c.id}>
+                  <td style={{ fontWeight: 600 }}>{c.scope}</td>
+                  <td>{c.grantedTo}</td>
+                  <td className="muted">{c.purpose || '—'}</td>
+                  <td className="muted">{c.validFrom || '—'} → {c.validTo || '—'}</td>
+                  <td><span className={'badge ' + (CONSENT_STATUS_BADGE[c.status] || 'badge-normal')}>{c.status}</span></td>
+                  <td className="muted">{new Date(c.createdAt).toLocaleDateString()}</td>
+                  <td>{c.status === 'GRANTED' && <span className="link" onClick={() => revoke(c.id)}>Revoke</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card card-pad" style={{ marginTop: 20 }}>
+        <h3 style={{ marginBottom: 12 }}>Grant consent</h3>
+        {error && <div className="error-text">{error}</div>}
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field" style={{ flex: '1 1 180px', marginBottom: 12 }}><label>Scope *</label><input className="input" value={scope} onChange={(e) => setScope(e.target.value)} /></div>
+          <div className="field" style={{ flex: '1 1 180px', marginBottom: 12 }}><label>Granted to *</label><input className="input" value={grantedTo} onChange={(e) => setGrantedTo(e.target.value)} /></div>
+          <div className="field" style={{ flex: '1 1 180px', marginBottom: 12 }}><label>Purpose</label><input className="input" value={purpose} onChange={(e) => setPurpose(e.target.value)} /></div>
+        </div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+          <div className="field" style={{ flex: '1 1 160px', marginBottom: 12 }}><label>Valid from</label><input className="input" type="date" value={validFrom} onChange={(e) => setValidFrom(e.target.value)} /></div>
+          <div className="field" style={{ flex: '1 1 160px', marginBottom: 12 }}><label>Valid to</label><input className="input" type="date" value={validTo} onChange={(e) => setValidTo(e.target.value)} /></div>
+          <div className="field" style={{ flex: '1 1 160px', marginBottom: 12 }}><label>Status</label>
+            <select className="input" value={status} onChange={(e) => setStatus(e.target.value as ConsentStatus)}>
+              <option value="GRANTED">GRANTED</option>
+              <option value="REVOKED">REVOKED</option>
+              <option value="EXPIRED">EXPIRED</option>
+            </select>
+          </div>
+        </div>
+        <button className="btn btn-primary" onClick={grant} disabled={saving || !scope.trim() || !grantedTo.trim()}>{saving ? 'Saving…' : 'Grant consent'}</button>
       </div>
     </div>
   );

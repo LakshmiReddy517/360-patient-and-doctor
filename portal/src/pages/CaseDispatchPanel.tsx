@@ -1,7 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../api/client';
 import { useLive } from '../api/live';
-import type { Agent, Ambulance, Assignment, AssignmentStatus } from '../types';
+import type { Agent, Ambulance, Assignment, AssignmentStatus, Trip } from '../types';
+
+/** Straight-line distance (km) between two coordinates. */
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371, dLat = ((lat2 - lat1) * Math.PI) / 180, dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+/** Rough ETA at ~30 km/h city speed. */
+function etaMinutes(km: number): number {
+  return Math.max(1, Math.round((km / 30) * 60));
+}
 
 const ASSIGN_BADGE: Record<string, string> = {
   OFFERED: 'badge-hold', ACCEPTED: 'badge-open', EN_ROUTE: 'badge-open',
@@ -20,6 +32,7 @@ export default function CaseDispatchPanel({ caseId }: { caseId: number }) {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [available, setAvailable] = useState<Agent[]>([]);
   const [fleet, setFleet] = useState<Ambulance[]>([]);
+  const [pickup, setPickup] = useState<{ lat: number; lng: number } | null>(null);
   const [error, setError] = useState('');
   const [otp, setOtp] = useState('');
 
@@ -28,9 +41,23 @@ export default function CaseDispatchPanel({ caseId }: { caseId: number }) {
       api.get<Assignment[]>('/assignments', { params: { caseId } }),
       api.get<Agent[]>('/agents/available'),
       api.get<Ambulance[]>('/ambulances'),
-    ]).then(([asg, ag, amb]) => { setAssignments(asg.data); setAvailable(ag.data); setFleet(amb.data); });
+      api.get<Trip>(`/cases/${caseId}/trip`).catch(() => null),
+    ]).then(([asg, ag, amb, trip]) => {
+      setAssignments(asg.data); setAvailable(ag.data); setFleet(amb.data);
+      const p = trip?.data?.pickup;
+      setPickup(p && p.latitude != null && p.longitude != null ? { lat: p.latitude, lng: p.longitude } : null);
+    });
   }, [caseId]);
   useEffect(() => { load(); }, [load]);
+
+  // Rank available agents by distance to the case pickup (blueprint point 64).
+  const rankedAgents = available
+    .map((a) => {
+      const km = pickup && a.currentLatitude != null && a.currentLongitude != null
+        ? haversineKm(pickup.lat, pickup.lng, a.currentLatitude, a.currentLongitude) : null;
+      return { agent: a, km };
+    })
+    .sort((x, y) => (x.km ?? 1e9) - (y.km ?? 1e9));
 
   // Dynamic: refresh dispatch state live when agents/ambulances move or the case changes.
   useLive((name, data) => {
@@ -72,14 +99,17 @@ export default function CaseDispatchPanel({ caseId }: { caseId: number }) {
       {!active && (
         <div className="card card-pad" style={{ marginBottom: 16 }}>
           <h3 style={{ marginBottom: 12 }}>Dispatch — available agents</h3>
+          {!pickup && <div className="muted" style={{ fontSize: 12, marginBottom: 8 }}>Pickup coordinates unavailable — distance/ETA not shown. Nearest agent is auto-picked on approval.</div>}
           {available.length === 0 ? <div className="muted">No available agents.</div> : (
             <div className="table-wrap">
               <table className="data">
-                <thead><tr><th>Agent</th><th>Skills</th><th>Languages</th><th>Workload</th><th></th></tr></thead>
+                <thead><tr><th>Agent</th><th>Distance</th><th>ETA</th><th>Skills</th><th>Languages</th><th>Workload</th><th></th></tr></thead>
                 <tbody>
-                  {available.map((a) => (
+                  {rankedAgents.map(({ agent: a, km }, i) => (
                     <tr key={a.id}>
-                      <td style={{ fontWeight: 600 }}>{a.fullName}</td>
+                      <td style={{ fontWeight: 600 }}>{a.fullName}{i === 0 && km != null && <span className="badge badge-progress" style={{ marginLeft: 8, fontSize: 9 }}>NEAREST</span>}</td>
+                      <td className="mono">{km != null ? km.toFixed(1) + ' km' : '—'}</td>
+                      <td className="muted">{km != null ? '~' + etaMinutes(km) + ' min' : '—'}</td>
                       <td><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>{a.skills.map((s) => <span key={s} className="badge badge-normal" style={{ fontSize: 10 }}>{s}</span>)}</div></td>
                       <td className="muted" style={{ fontSize: 12 }}>{a.languages.join(', ')}</td>
                       <td className="muted">{a.activeAssignments} active</td>
