@@ -49,7 +49,7 @@ class Session(context: Context) {
     companion object {
         // Default points at this PC's LAN IP so a physical phone on the same Wi-Fi connects with
         // no editing. Change on the login screen if the PC's IP differs (e.g. http://10.0.2.2:8080 for emulator).
-        const val DEFAULT_BASE_URL = "http://192.168.0.108:8080/"
+        const val DEFAULT_BASE_URL = "http://localhost:8080/"
         private const val KEY_LANG = "language"
         private const val KEY_BASE_URL = "base_url"
         private const val KEY_TOKEN = "token"

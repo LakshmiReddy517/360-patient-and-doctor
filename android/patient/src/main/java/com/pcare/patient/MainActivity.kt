@@ -7,9 +7,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -189,22 +188,27 @@ private fun LoginScreen(session: Session, onLoggedIn: () -> Unit) {
 @Composable
 private fun MainShell(session: Session, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
+    var pendingEmergency by remember { mutableStateOf(false) }
     Scaffold(
         bottomBar = {
             NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
                 val navColors = NavigationBarItemDefaults.colors(
                     selectedIconColor = Teal, selectedTextColor = Teal, indicatorColor = Teal.copy(alpha = 0.14f),
                     unselectedIconColor = Muted, unselectedTextColor = Muted)
-                NavigationBarItem(tab == 0, { tab = 0 }, icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Home") }, colors = navColors)
-                NavigationBarItem(tab == 1, { tab = 1 }, icon = { Icon(Icons.Filled.MedicalServices, null) }, label = { Text("My Care") }, colors = navColors)
-                NavigationBarItem(tab == 2, { tab = 2 }, icon = { Icon(Icons.Filled.Person, null) }, label = { Text("Profile") }, colors = navColors)
+                NavigationBarItem(tab == 0, { tab = 0 }, icon = { Icon(Icons.Filled.Home, null) }, label = { Text("Home", fontSize = 10.sp) }, colors = navColors)
+                NavigationBarItem(tab == 1, { tab = 1 }, icon = { Icon(Icons.Filled.Add, null) }, label = { Text("Services", fontSize = 10.sp) }, colors = navColors)
+                NavigationBarItem(tab == 2, { tab = 2 }, icon = { Icon(Icons.Filled.Favorite, null) }, label = { Text("My Care", fontSize = 10.sp) }, colors = navColors)
+                NavigationBarItem(tab == 3, { tab = 3 }, icon = { Icon(Icons.Filled.Folder, null) }, label = { Text("Records", fontSize = 10.sp) }, colors = navColors)
+                NavigationBarItem(tab == 4, { tab = 4 }, icon = { Icon(Icons.Filled.Person, null) }, label = { Text("Profile", fontSize = 10.sp) }, colors = navColors)
             }
         }
     ) { pad ->
         Box(Modifier.padding(pad)) {
             when (tab) {
-                0 -> BookTab(session)
-                1 -> MyCareTab(session)
+                0 -> HomeTab(session, goTo = { tab = it }, startEmergency = { pendingEmergency = true; tab = 1 })
+                1 -> ServicesTab(session, startEmergency = pendingEmergency, onConsumed = { pendingEmergency = false })
+                2 -> MyCareTab(session)
+                3 -> RecordsTab(session)
                 else -> ProfileTab(session, onLogout)
             }
         }
@@ -228,43 +232,45 @@ private fun GradientHeader(title: String, subtitle: String, initial: String) {
     }
 }
 
-// ---------------- HOME / BOOK ----------------
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+// ---------------- HOME (dashboard) ----------------
 @Composable
-private fun BookTab(session: Session) {
-    val scope = rememberCoroutineScope()
+private fun HomeTab(session: Session, goTo: (Int) -> Unit, startEmergency: () -> Unit) {
     val api = remember { ApiClient.service(session) }
     var packages by remember { mutableStateOf<List<ServicePackage>>(emptyList()) }
-    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
-    var notes by remember { mutableStateOf("") }
-    var emergency by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf<String?>(null) }
-    var loading by remember { mutableStateOf(true) }
+    var activeCount by remember { mutableStateOf(0) }
     var showNearby by remember { mutableStateOf(false) }
-    var showRecords by remember { mutableStateOf(false) }
     var showSupport by remember { mutableStateOf(false) }
-    val bookRequester = remember { BringIntoViewRequester() }
-    val services = listOf(
-        Triple("PICKUP_DROP", "Pickup & Drop", Icons.Filled.LocalTaxi), Triple("AMBULANCE", "Ambulance", Icons.Filled.LocalHospital),
-        Triple("HOSPITAL_ADMISSION", "Admission", Icons.Filled.MedicalServices), Triple("DOCTOR_APPOINTMENT", "Doctor", Icons.Filled.Person),
-        Triple("CARETAKER", "Caretaker", Icons.Filled.Favorite), Triple("ACCOMMODATION", "Stay", Icons.Filled.Hotel),
-        Triple("FOOD", "Food", Icons.Filled.Restaurant), Triple("LOCAL_TRANSPORT", "Transport", Icons.Filled.DirectionsCar))
-    LaunchedEffect(Unit) { try { packages = api.packages() } catch (_: Exception) {} finally { loading = false } }
-
+    LaunchedEffect(Unit) { try { packages = api.packages() } catch (_: Exception) {} }
+    // Live: keep the "active journeys" count fresh.
+    LaunchedEffect(Unit) {
+        while (true) {
+            try { activeCount = api.myCases().count { it.status != "CLOSED" && it.status != "CANCELLED" } } catch (_: Exception) {}
+            kotlinx.coroutines.delay(5000)
+        }
+    }
     if (showNearby) { NearbyScreen(session) { showNearby = false }; return }
-    if (showRecords) { RecordsScreen(session) { showRecords = false }; return }
     if (showSupport) { SupportScreen { showSupport = false }; return }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         GradientHeader(session.userName ?: "Patient", "Hello,", session.userName ?: "P")
         Column(Modifier.padding(16.dp)) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                QuickAction(Icons.Filled.Warning, "Emergency", Danger, Modifier.weight(1f)) { emergency = true }
-                QuickAction(Icons.Filled.Add, "Book", Teal, Modifier.weight(1f)) { scope.launch { bookRequester.bringIntoView() } }
-                QuickAction(Icons.Filled.Folder, "Records", Color(0xFF2563EB), Modifier.weight(1f)) { showRecords = true }
+                QuickAction(Icons.Filled.Warning, "Emergency", Danger, Modifier.weight(1f)) { startEmergency() }
+                QuickAction(Icons.Filled.Add, "Book", Teal, Modifier.weight(1f)) { goTo(1) }
+                QuickAction(Icons.Filled.Folder, "Records", Color(0xFF2563EB), Modifier.weight(1f)) { goTo(3) }
                 QuickAction(Icons.Filled.SupportAgent, "Support", Color(0xFF7C3AED), Modifier.weight(1f)) { showSupport = true }
             }
             Spacer(Modifier.height(14.dp))
+            ElevatedCard(onClick = { goTo(2) }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(shape = RoundedCornerShape(12.dp), color = Teal.copy(alpha = 0.10f)) { Icon(Icons.Filled.Favorite, null, tint = Teal, modifier = Modifier.padding(11.dp).size(22.dp)) }
+                    Spacer(Modifier.width(14.dp))
+                    Column(Modifier.weight(1f)) { Text("My active journeys", fontWeight = FontWeight.Bold, color = Ink); Text(if (activeCount == 0) "No active cases — tap to view" else "$activeCount active case${if (activeCount == 1) "" else "s"}", color = Muted, fontSize = 12.sp) }
+                    if (activeCount > 0) Surface(shape = RoundedCornerShape(50), color = Teal) { Text("$activeCount", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(10.dp, 4.dp)) }
+                    else Icon(Icons.Filled.ChevronRight, null, tint = Muted)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
             ElevatedCard(onClick = { showNearby = true }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth(), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Surface(shape = RoundedCornerShape(12.dp), color = Danger.copy(alpha = 0.10f)) { Icon(Icons.Filled.LocalHospital, null, tint = Danger, modifier = Modifier.padding(11.dp).size(22.dp)) }
@@ -274,7 +280,40 @@ private fun BookTab(session: Session) {
                 }
             }
             Spacer(Modifier.height(22.dp))
-            Box(Modifier.bringIntoViewRequester(bookRequester)) { SectionTitle("Book assistance") }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                SectionTitle("Care packages"); Spacer(Modifier.weight(1f))
+                Text("Book →", color = Teal, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.clickable { goTo(1) }.padding(bottom = 10.dp))
+            }
+            if (packages.isEmpty()) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Teal) }
+            packages.forEach { p -> PackageCard(p) }
+            Spacer(Modifier.height(16.dp))
+            Text("Developed by pvalr", color = Muted, fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
+// ---------------- SERVICES (booking) ----------------
+@Composable
+private fun ServicesTab(session: Session, startEmergency: Boolean, onConsumed: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val api = remember { ApiClient.service(session) }
+    var selected by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var notes by remember { mutableStateOf("") }
+    var emergency by remember { mutableStateOf(false) }
+    var message by remember { mutableStateOf<String?>(null) }
+    var submitting by remember { mutableStateOf(false) }
+    val services = listOf(
+        Triple("PICKUP_DROP", "Pickup & Drop", Icons.Filled.LocalTaxi), Triple("AMBULANCE", "Ambulance", Icons.Filled.LocalHospital),
+        Triple("HOSPITAL_ADMISSION", "Admission", Icons.Filled.MedicalServices), Triple("DOCTOR_APPOINTMENT", "Doctor", Icons.Filled.Person),
+        Triple("CARETAKER", "Caretaker", Icons.Filled.Favorite), Triple("ACCOMMODATION", "Stay", Icons.Filled.Hotel),
+        Triple("FOOD", "Food", Icons.Filled.Restaurant), Triple("LOCAL_TRANSPORT", "Transport", Icons.Filled.DirectionsCar))
+    LaunchedEffect(startEmergency) { if (startEmergency) { emergency = true; onConsumed() } }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+        GradientHeader("Book Assistance", "What help do you need?", session.userName ?: "P")
+        Column(Modifier.padding(16.dp)) {
+            Text("Select one or more services", color = Muted, fontSize = 12.5.sp, modifier = Modifier.padding(bottom = 12.dp))
             ElevatedCard(shape = RoundedCornerShape(20.dp), colors = CardDefaults.elevatedCardColors(containerColor = Color.White)) {
                 Column(Modifier.padding(16.dp)) {
                     services.chunked(2).forEach { row ->
@@ -289,15 +328,16 @@ private fun BookTab(session: Session) {
                         Checkbox(emergency, { emergency = it }, colors = CheckboxDefaults.colors(checkedColor = Danger)); Text("This is an emergency", color = if (emergency) Danger else Ink, fontSize = 13.sp)
                     }
                     Button(onClick = {
-                        message = null
+                        message = null; submitting = true
                         scope.launch {
                             try {
                                 val req = api.createRequest(CreateRequest(session.userName ?: "Patient", null, selected.toList(), notes.ifBlank { null }, emergency))
-                                message = "Request #${req.id} submitted — ${req.status}"; selected = emptySet(); notes = ""; emergency = false
-                            } catch (e: Exception) { message = e.message ?: "Failed" }
+                                message = "Request #${req.id} submitted — ${req.status}. Track it in My Care."; selected = emptySet(); notes = ""; emergency = false
+                            } catch (e: Exception) { message = e.message ?: "Failed" } finally { submitting = false }
                         }
-                    }, enabled = selected.isNotEmpty(), shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 6.dp)) {
-                        Icon(Icons.Filled.Send, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Request assistance", fontWeight = FontWeight.SemiBold)
+                    }, enabled = selected.isNotEmpty() && !submitting, shape = RoundedCornerShape(14.dp), modifier = Modifier.fillMaxWidth().height(52.dp).padding(top = 6.dp)) {
+                        if (submitting) CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        else { Icon(Icons.Filled.Send, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text("Request assistance", fontWeight = FontWeight.SemiBold) }
                     }
                     message?.let {
                         Spacer(Modifier.height(12.dp))
@@ -307,14 +347,15 @@ private fun BookTab(session: Session) {
                     }
                 }
             }
-            Spacer(Modifier.height(24.dp)); SectionTitle("Care packages")
-            if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Teal) }
-            packages.forEach { p -> PackageCard(p) }
-            Spacer(Modifier.height(16.dp))
-            Text("Developed by pvalr", color = Muted, fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(20.dp))
         }
     }
+}
+
+// ---------------- RECORDS (tab wrapper) ----------------
+@Composable
+private fun RecordsTab(session: Session) {
+    RecordsScreen(session, onBack = null)
 }
 
 // ---------------- MY CARE (cases) ----------------
@@ -705,7 +746,7 @@ private fun NearbyScreen(session: Session, onBack: () -> Unit) {
 
 // ---------------- MEDICAL RECORDS ----------------
 @Composable
-private fun RecordsScreen(session: Session, onBack: () -> Unit) {
+private fun RecordsScreen(session: Session, onBack: (() -> Unit)? = null) {
     val api = remember { ApiClient.service(session) }
     var records by remember { mutableStateOf<MyRecordsDto?>(null) }
     var documents by remember { mutableStateOf<List<MyDocumentDto>>(emptyList()) }
@@ -717,8 +758,8 @@ private fun RecordsScreen(session: Session, onBack: () -> Unit) {
     }
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
-            Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
+            Row(Modifier.fillMaxWidth().padding(if (onBack != null) 12.dp else 20.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
+                if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Medical records", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Appointments, medicines & documents", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
             }
         }
