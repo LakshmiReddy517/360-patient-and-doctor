@@ -236,6 +236,24 @@ private fun LoginScreen(session: Session, onLoggedIn: () -> Unit) {
 private fun MainShell(session: Session, onLogout: () -> Unit) {
     var tab by remember { mutableStateOf(0) }
     var pendingEmergency by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var showExit by remember { mutableStateOf(false) }
+    // Back press: from a non-Home tab go Home; from Home ask before leaving.
+    androidx.activity.compose.BackHandler { if (tab != 0) tab = 0 else showExit = true }
+    if (showExit) {
+        AlertDialog(
+            onDismissRequest = { showExit = false },
+            icon = { Icon(Icons.Filled.Logout, null, tint = Teal) },
+            title = { Text("Logout & exit?", fontWeight = FontWeight.Bold) },
+            text = { Text("You'll be signed out and the app will close.") },
+            confirmButton = {
+                TextButton(onClick = { showExit = false; session.clear(); (ctx as? android.app.Activity)?.finishAffinity() }) {
+                    Text("Logout", color = Danger, fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showExit = false }) { Text("Cancel", color = Muted) } }
+        )
+    }
     Scaffold(
         bottomBar = {
             NavigationBar(containerColor = Color.White, tonalElevation = 0.dp) {
@@ -472,6 +490,7 @@ private fun MyCareTab(session: Session) {
 
 @Composable
 private fun CaseDetailScreen(session: Session, caseId: Long, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val api = remember { ApiClient.service(session) }
     val scope = rememberCoroutineScope()
     var d by remember { mutableStateOf<MyCaseDetail?>(null) }
@@ -592,6 +611,7 @@ private fun haversineKm(a: org.osmdroid.util.GeoPoint, b: org.osmdroid.util.GeoP
 
 @Composable
 private fun TrackAmbulanceScreen(session: Session, caseId: Long, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val api = remember { ApiClient.service(session) }
     var status by remember { mutableStateOf("Locating your ambulance…") }
@@ -696,6 +716,7 @@ private fun getDeviceLocation(ctx: android.content.Context, onResult: (Double, D
 
 @Composable
 private fun NearbyScreen(session: Session, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val api = remember { ApiClient.service(session) }
     var loc by remember { mutableStateOf<Pair<Double, Double>?>(null) }
@@ -841,6 +862,7 @@ private fun RecordsScreen(session: Session, onBack: (() -> Unit)? = null) {
 // ---------------- SUPPORT ----------------
 @Composable
 private fun SupportScreen(onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val supportNumber = "+91 90000 00360"
     var showCall by remember { mutableStateOf(false) }
@@ -930,6 +952,7 @@ private val PREF_CATEGORIES = listOf("APPOINTMENT", "PAYMENT", "PICKUP", "MEDICA
 
 @Composable
 private fun NotificationPreferencesScreen(session: Session, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val api = remember { ApiClient.service(session) }
     val scope = rememberCoroutineScope()
     var prefs by remember { mutableStateOf<Map<String, NotificationPreferenceDto>>(emptyMap()) }

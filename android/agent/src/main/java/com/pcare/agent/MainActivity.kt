@@ -219,6 +219,25 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
 
     val online = agent?.status == "AVAILABLE" || agent?.status == "ONLINE"
 
+    // Back press on the jobs home asks before logging out & closing the app.
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var showExit by remember { mutableStateOf(false) }
+    androidx.activity.compose.BackHandler { showExit = true }
+    if (showExit) {
+        AlertDialog(
+            onDismissRequest = { showExit = false },
+            icon = { Icon(Icons.Filled.Logout, null, tint = TealDeep) },
+            title = { Text("Logout & exit?", fontWeight = FontWeight.Bold) },
+            text = { Text("You'll be signed out and the app will close.") },
+            confirmButton = {
+                TextButton(onClick = { showExit = false; session.clear(); (ctx as? android.app.Activity)?.finishAffinity() }) {
+                    Text("Logout", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
+                }
+            },
+            dismissButton = { TextButton(onClick = { showExit = false }) { Text("Cancel", color = Muted) } }
+        )
+    }
+
     // Live GPS: while Available, post location every few seconds so the Command Centre map moves.
     LaunchedEffect(agent?.id, online) {
         val a = agent ?: return@LaunchedEffect
@@ -393,6 +412,7 @@ private fun haversineKm(a: org.osmdroid.util.GeoPoint, b: org.osmdroid.util.GeoP
 
 @Composable
 private fun AgentRouteScreen(session: Session, agentId: Long, caseId: Long, onBack: () -> Unit) {
+    androidx.activity.compose.BackHandler { onBack() }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val api = remember { ApiClient.service(session) }
     var status by remember { mutableStateOf("Loading route…") }
