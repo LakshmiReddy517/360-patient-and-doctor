@@ -77,3 +77,7 @@ createRoot(document.getElementById('root')!).render(
     </AuthProvider>
   </StrictMode>
 );
+
+// Dismiss the branded splash screen once the app has mounted.
+declare global { interface Window { __hideSplash?: () => void } }
+requestAnimationFrame(() => window.__hideSplash?.());

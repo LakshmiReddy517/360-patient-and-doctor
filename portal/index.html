@@ -5,9 +5,104 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>360° Patient Care — Command Centre</title>
+    <style>
+      /* ---------- Splash screen (shows instantly, before React mounts) ---------- */
+      #splash {
+        position: fixed; inset: 0; z-index: 9999;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        background: radial-gradient(1200px 700px at 50% 30%, #157a71 0%, #0f766e 38%, #0b5d56 60%, #0b1220 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        overflow: hidden;
+        transition: opacity .55s ease, visibility .55s ease;
+      }
+      #splash.hide { opacity: 0; visibility: hidden; }
+      /* soft floating glow blobs */
+      #splash .blob {
+        position: absolute; border-radius: 50%; filter: blur(60px); opacity: .35;
+        animation: float 9s ease-in-out infinite;
+      }
+      #splash .blob.b1 { width: 420px; height: 420px; background: #2dd4bf; top: -120px; left: -90px; }
+      #splash .blob.b2 { width: 360px; height: 360px; background: #0ea5e9; bottom: -120px; right: -80px; animation-delay: -3s; }
+      #splash .blob.b3 { width: 260px; height: 260px; background: #14b8a6; bottom: 60px; left: 10%; animation-delay: -5s; opacity: .25; }
+      @keyframes float { 0%,100% { transform: translateY(0) translateX(0); } 50% { transform: translateY(-26px) translateX(18px); } }
+
+      #splash .badge {
+        position: relative; width: 132px; height: 132px; border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255,255,255,.08);
+        border: 1.5px solid rgba(255,255,255,.22);
+        box-shadow: 0 24px 60px rgba(0,0,0,.35), inset 0 0 40px rgba(45,212,191,.12);
+        backdrop-filter: blur(4px);
+        animation: rise .8s cubic-bezier(.2,.8,.2,1) both;
+      }
+      /* pulsing rings */
+      #splash .ring {
+        position: absolute; inset: 0; border-radius: 50%;
+        border: 2px solid rgba(45,212,191,.55);
+        animation: pulse 2.2s ease-out infinite;
+      }
+      #splash .ring.r2 { animation-delay: 1.1s; }
+      @keyframes pulse { 0% { transform: scale(1); opacity: .8; } 100% { transform: scale(1.9); opacity: 0; } }
+
+      /* ECG heartbeat line */
+      #splash svg .ecg { stroke: #fff; stroke-width: 6; fill: none; stroke-linecap: round; stroke-linejoin: round;
+        stroke-dasharray: 220; stroke-dashoffset: 220; animation: draw 2.4s ease-in-out infinite; filter: drop-shadow(0 0 6px rgba(255,255,255,.6)); }
+      @keyframes draw { 0% { stroke-dashoffset: 220; } 55% { stroke-dashoffset: 0; } 75% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -220; } }
+
+      #splash .title { margin-top: 30px; color: #fff; font-size: 30px; font-weight: 800; letter-spacing: -.4px;
+        animation: rise .8s .12s cubic-bezier(.2,.8,.2,1) both; }
+      #splash .sub { margin-top: 8px; color: #cafff4; font-size: 14px; font-weight: 500; letter-spacing: 3px; text-transform: uppercase;
+        animation: rise .8s .22s cubic-bezier(.2,.8,.2,1) both; }
+      @keyframes rise { 0% { opacity: 0; transform: translateY(14px); } 100% { opacity: 1; transform: translateY(0); } }
+
+      /* indeterminate progress bar */
+      #splash .bar { margin-top: 34px; width: 220px; height: 4px; border-radius: 99px; background: rgba(255,255,255,.18); overflow: hidden; }
+      #splash .bar > i { display: block; height: 100%; width: 40%; border-radius: 99px;
+        background: linear-gradient(90deg, rgba(45,212,191,0), #5eead4, #ffffff, #5eead4, rgba(45,212,191,0));
+        animation: slide 1.25s ease-in-out infinite; }
+      @keyframes slide { 0% { transform: translateX(-120%); } 100% { transform: translateX(320%); } }
+
+      #splash .by { position: absolute; bottom: 26px; color: rgba(255,255,255,.55); font-size: 11px; letter-spacing: .5px; }
+      @media (prefers-reduced-motion: reduce) {
+        #splash .ring, #splash svg .ecg, #splash .bar > i, #splash .blob { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+
+    <div id="splash" role="status" aria-label="Loading 360 Patient Care">
+      <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+      <div class="badge">
+        <span class="ring"></span><span class="ring r2"></span>
+        <svg width="74" height="74" viewBox="0 0 120 120" aria-hidden="true">
+          <!-- heartbeat / ECG line inside the badge -->
+          <polyline class="ecg" points="12,62 38,62 50,36 64,86 76,54 86,62 108,62" />
+        </svg>
+      </div>
+      <div class="title">360° Patient Care</div>
+      <div class="sub">Command Centre</div>
+      <div class="bar"><i></i></div>
+      <div class="by">Developed by pvalr</div>
+    </div>
+
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fade the splash out once the app has mounted, keeping a graceful minimum on-screen time.
+      (function () {
+        var START = Date.now(), MIN = 1500;
+        window.__hideSplash = function () {
+          var el = document.getElementById('splash');
+          if (!el) return;
+          var wait = Math.max(0, MIN - (Date.now() - START));
+          setTimeout(function () {
+            el.classList.add('hide');
+            setTimeout(function () { el && el.remove(); }, 650);
+          }, wait);
+        };
+        // Fallback: never let the splash get stuck.
+        setTimeout(function () { window.__hideSplash && window.__hideSplash(); }, 6000);
+      })();
+    </script>
   </body>
 </html>
