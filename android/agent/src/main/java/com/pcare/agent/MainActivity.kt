@@ -3,11 +3,20 @@ package com.pcare.agent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -53,12 +62,49 @@ class MainActivity : ComponentActivity() {
                 colorScheme = lightColorScheme(primary = TealDeep, onPrimary = Color.White, background = Bg, surface = Color.White, onSurface = Ink)
             ) {
                 Surface(Modifier.fillMaxSize(), color = Bg) {
+                    var showSplash by remember { mutableStateOf(true) }
                     var loggedIn by remember { mutableStateOf(session.isLoggedIn) }
-                    if (loggedIn) JobsScreen(session) { session.clear(); loggedIn = false }
-                    else LoginScreen(session) { loggedIn = true }
+                    LaunchedEffect(Unit) { kotlinx.coroutines.delay(1700); showSplash = false }
+                    Crossfade(targetState = showSplash, animationSpec = tween(600), label = "splash") { splash ->
+                        when {
+                            splash -> SplashScreen()
+                            loggedIn -> JobsScreen(session) { session.clear(); loggedIn = false }
+                            else -> LoginScreen(session) { loggedIn = true }
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SplashScreen() {
+    val inf = rememberInfiniteTransition(label = "splash")
+    val scale by inf.animateFloat(1f, 1.14f, infiniteRepeatable(tween(950), RepeatMode.Reverse), label = "scale")
+    val ring by inf.animateFloat(0.45f, 0f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ring")
+    val ringScale by inf.animateFloat(1f, 1.8f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ringScale")
+    Box(Modifier.fillMaxSize().background(NavyBrush), contentAlignment = Alignment.Center) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(contentAlignment = Alignment.Center) {
+                Surface(shape = CircleShape, color = Teal.copy(alpha = ring),
+                    modifier = Modifier.size(120.dp).scale(ringScale)) {}
+                Surface(shape = CircleShape, color = Teal.copy(alpha = 0.18f),
+                    border = BorderStroke(1.5.dp, Teal.copy(alpha = 0.45f)),
+                    modifier = Modifier.size(108.dp).scale(scale)) {
+                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.LocalShipping, null, tint = Teal, modifier = Modifier.size(44.dp)) }
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+            Text("360° Care Agent", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(7.dp))
+            Text("FIELD OPERATIONS", color = Color.White.copy(alpha = 0.78f), fontSize = 10.5.sp, letterSpacing = 3.sp)
+            Spacer(Modifier.height(30.dp))
+            LinearProgressIndicator(color = Teal, trackColor = Color.White.copy(alpha = 0.18f),
+                modifier = Modifier.width(180.dp).height(4.dp).clip(RoundedCornerShape(50)))
+        }
+        Text("Developed by pvalr", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp))
     }
 }
 
