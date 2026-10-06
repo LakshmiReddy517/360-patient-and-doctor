@@ -74,14 +74,14 @@ public class NotificationController {
 
     // ---- Preferences ----
     @Operation(summary = "Get a user's notification preferences")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','PATIENT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','PATIENT','AGENT','DOCTOR','CARETAKER')")
     @GetMapping("/preferences/{userId}")
     public List<PreferenceDto> preferences(@PathVariable Long userId) {
         return preferenceService.forUser(userId);
     }
 
     @Operation(summary = "Create/update a preference")
-    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','PATIENT')")
+    @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','PATIENT','AGENT','DOCTOR','CARETAKER')")
     @PutMapping("/preferences")
     public PreferenceDto upsert(@Valid @RequestBody UpsertPreferenceRequest req) {
         return preferenceService.upsert(req);

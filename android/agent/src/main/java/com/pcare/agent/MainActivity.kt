@@ -2,7 +2,9 @@ package com.pcare.agent
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -238,16 +240,21 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
         )
     }
 
-    // Live GPS: while Available, post location every few seconds so the Command Centre map moves.
+    // Request location permission on first load so live GPS can use the real device position.
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            permLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
+        }
+    }
+    // Live GPS: while Available, post the REAL device location every few seconds so the Command Centre map moves.
     LaunchedEffect(agent?.id, online) {
         val a = agent ?: return@LaunchedEffect
         if (!online) return@LaunchedEffect
-        var lat = 12.9716; var lng = 77.5946
         while (true) {
-            kotlinx.coroutines.delay(4000)
-            lat += (kotlin.random.Random.nextDouble() - 0.5) * 0.004
-            lng += (kotlin.random.Random.nextDouble() - 0.5) * 0.004
-            try { api.postLocation(a.id, LocationRequest(lat, lng)) } catch (_: Exception) {}
+            getDeviceLocation(ctx) { la, ln -> scope.launch { try { api.postLocation(a.id, LocationRequest(la, ln)) } catch (_: Exception) {} } }
+            kotlinx.coroutines.delay(5000)
         }
     }
 
@@ -280,7 +287,7 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
                             scope.launch { try { api.setAgentStatus(a.id, StatusRequest("OFFLINE")); refresh() } catch (_: Exception) {} }
                         }
                         DutyButton("GPS", Icons.Filled.MyLocation, false, Modifier.weight(1f)) {
-                            scope.launch { try { api.postLocation(a.id, LocationRequest(12.9716, 77.5946)); refresh() } catch (_: Exception) {} }
+                            getDeviceLocation(ctx) { la, ln -> scope.launch { try { api.postLocation(a.id, LocationRequest(la, ln)); refresh() } catch (_: Exception) {} } }
                         }
                     }
                 }
@@ -393,6 +400,22 @@ private fun DutyButton(label: String, icon: ImageVector, active: Boolean, modifi
             Text(label, color = if (active) Navy else Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
         }
     }
+}
+
+// ---------------- Real device GPS ----------------
+@android.annotation.SuppressLint("MissingPermission")
+private fun getDeviceLocation(ctx: android.content.Context, onResult: (Double, Double) -> Unit) {
+    try {
+        val lm = ctx.getSystemService(android.content.Context.LOCATION_SERVICE) as android.location.LocationManager
+        for (p in listOf(android.location.LocationManager.GPS_PROVIDER, android.location.LocationManager.NETWORK_PROVIDER)) {
+            try { lm.getLastKnownLocation(p)?.let { onResult(it.latitude, it.longitude); return } } catch (_: Exception) {}
+        }
+        val provider = if (lm.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER))
+            android.location.LocationManager.GPS_PROVIDER else android.location.LocationManager.NETWORK_PROVIDER
+        lm.getCurrentLocation(provider, null, ctx.mainExecutor) { loc ->
+            if (loc != null) onResult(loc.latitude, loc.longitude) else onResult(17.39, 78.36)
+        }
+    } catch (_: Exception) { onResult(17.39, 78.36) }
 }
 
 // ---------------- ROUTE MAP (native OpenStreetMap, live) ----------------

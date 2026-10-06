@@ -44,7 +44,8 @@ public class BillingController {
     @Operation(summary = "List quotes for a case")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','FINANCE','PATIENT')")
     @GetMapping("/quotes")
-    public List<QuoteDto> listByCase(@RequestParam Long caseId) {
+    public List<QuoteDto> listByCase(@RequestParam(required = false) Long caseId) {
+        if (caseId == null) return java.util.List.of();
         return quoteService.listByCase(caseId);
     }
 
@@ -87,7 +88,8 @@ public class BillingController {
     @Operation(summary = "List payments for a case")
     @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','FINANCE')")
     @GetMapping("/payments")
-    public List<PaymentDto> listPaymentsByCase(@RequestParam Long caseId) {
+    public List<PaymentDto> listPaymentsByCase(@RequestParam(required = false) Long caseId) {
+        if (caseId == null) return java.util.List.of();
         return paymentService.listByCase(caseId);
     }
 

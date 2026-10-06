@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, apiErrorMessage } from '../api/client';
+import { useAuth } from '../auth/AuthContext';
 import type { Complaint, ComplaintStats, Page, Priority } from '../types';
 
 const PRIORITY_BADGE: Record<string, string> = {
@@ -115,6 +116,7 @@ function CreateModal({ priorities, onClose, onDone }: { priorities: Priority[]; 
 }
 
 function DetailModal({ id, onClose, onChanged }: { id: number; onClose: () => void; onChanged: () => void }) {
+  const { user } = useAuth();
   const [c, setC] = useState<Complaint | null>(null);
   const [comment, setComment] = useState('');
   const [resolution, setResolution] = useState('');
@@ -154,7 +156,7 @@ function DetailModal({ id, onClose, onChanged }: { id: number; onClose: () => vo
         </div>
 
         <div className="toolbar">
-          <button className="btn btn-sm" onClick={() => act(() => api.put(`/complaints/${id}/assign`, { userId: 1, name: 'Command Centre Admin' }))} disabled={c.status !== 'OPEN'}>Assign to me</button>
+          <button className="btn btn-sm" onClick={() => act(() => api.put(`/complaints/${id}/assign`, { userId: user?.id ?? 1, name: user?.fullName || user?.username || 'Staff' }))} disabled={c.status !== 'OPEN'}>Assign to me</button>
           <button className="btn btn-sm" onClick={() => act(() => api.put(`/complaints/${id}/status`, { status: 'INVESTIGATING' }))}>Investigate</button>
           <button className="btn btn-sm" onClick={() => act(() => api.put(`/complaints/${id}/status`, { status: 'REOPENED' }))}>Reopen</button>
           <button className="btn btn-sm" onClick={() => act(() => api.put(`/complaints/${id}/status`, { status: 'CLOSED' }))}>Close</button>
