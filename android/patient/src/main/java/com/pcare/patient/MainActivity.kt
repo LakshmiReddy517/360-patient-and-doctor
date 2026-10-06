@@ -245,7 +245,7 @@ private fun MainShell(session: Session, onLogout: () -> Unit) {
             onDismissRequest = { showExit = false },
             icon = { Icon(Icons.Filled.Logout, null, tint = Teal) },
             title = { Text("Logout & exit?", fontWeight = FontWeight.Bold) },
-            text = { Text("You'll be signed out and the app will close.") },
+            text = { Text("You'll be logged out and the app will close.") },
             confirmButton = {
                 TextButton(onClick = { showExit = false; session.clear(); (ctx as? android.app.Activity)?.finishAffinity() }) {
                     Text("Logout", color = Danger, fontWeight = FontWeight.Bold)

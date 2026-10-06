@@ -228,7 +228,7 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
             onDismissRequest = { showExit = false },
             icon = { Icon(Icons.Filled.Logout, null, tint = TealDeep) },
             title = { Text("Logout & exit?", fontWeight = FontWeight.Bold) },
-            text = { Text("You'll be signed out and the app will close.") },
+            text = { Text("You'll be logged out and the app will close.") },
             confirmButton = {
                 TextButton(onClick = { showExit = false; session.clear(); (ctx as? android.app.Activity)?.finishAffinity() }) {
                     Text("Logout", color = Color(0xFFDC2626), fontWeight = FontWeight.Bold)
