@@ -42,6 +42,10 @@ app:
   storage:
     # Document uploads are written here (kept on D: where there is free space).
     uploads-dir: D:/floder/backend/uploads
+  firebase:
+    # Path to the Firebase service-account JSON for sending FCM push notifications.
+    # Leave blank to disable push (notifications are still recorded). Override via env FIREBASE_CREDENTIALS.
+    credentials-path: ${FIREBASE_CREDENTIALS:}
 
 springdoc:
   swagger-ui:

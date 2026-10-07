@@ -33,4 +33,8 @@ dependencies {
 
     // Local persistence for the auth token / server URL
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+
+    // Firebase Cloud Messaging (push notifications) — shared by both apps
+    api(platform("com.google.firebase:firebase-bom:33.4.0"))
+    api("com.google.firebase:firebase-messaging")
 }

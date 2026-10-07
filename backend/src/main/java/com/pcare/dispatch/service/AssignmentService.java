@@ -33,12 +33,16 @@ public class AssignmentService {
     private final CaseService caseService;
     private final com.pcare.settlement.service.SettlementService settlementService;
 
+    private final com.pcare.notification.service.PushService pushService;
+
     public AssignmentService(AssignmentRepository assignmentRepository, AgentRepository agentRepository,
-                             CaseService caseService, com.pcare.settlement.service.SettlementService settlementService) {
+                             CaseService caseService, com.pcare.settlement.service.SettlementService settlementService,
+                             com.pcare.notification.service.PushService pushService) {
         this.assignmentRepository = assignmentRepository;
         this.agentRepository = agentRepository;
         this.caseService = caseService;
         this.settlementService = settlementService;
+        this.pushService = pushService;
     }
 
     @Transactional
@@ -64,6 +68,11 @@ public class AssignmentService {
 
         caseService.addEvent(caseId, CaseEventType.RESOURCE_ASSIGNED,
                 "Agent " + agent.getFullName() + " assigned (assignment #" + saved.getId() + ")", "DISPATCH");
+        // Push the new job straight to the agent's device (no-op unless Firebase configured + token registered).
+        try {
+            pushService.pushToUser(agent.getUserId(), "New job — " + caseFile.getCaseNumber(),
+                    "Pickup for " + caseFile.getPatientName() + ". Open the app to accept.", caseId);
+        } catch (Exception ignored) { }
         return saved;
     }
 

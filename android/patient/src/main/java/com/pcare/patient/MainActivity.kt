@@ -238,6 +238,16 @@ private fun MainShell(session: Session, onLogout: () -> Unit) {
     var pendingEmergency by remember { mutableStateOf(false) }
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var showExit by remember { mutableStateOf(false) }
+    // Push notifications: ask for POST_NOTIFICATIONS (API 33+) and register this device's FCM token.
+    val notifPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    LaunchedEffect(Unit) {
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notifPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        Fcm.registerCurrentToken(ctx, session)
+    }
     // Back press: from a non-Home tab go Home; from Home ask before leaving.
     androidx.activity.compose.BackHandler { if (tab != 0) tab = 0 else showExit = true }
     if (showExit) {

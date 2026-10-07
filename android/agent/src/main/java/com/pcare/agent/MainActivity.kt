@@ -242,11 +242,19 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
 
     // Request location permission on first load so live GPS can use the real device position.
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val notifPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
     LaunchedEffect(Unit) {
         if (androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.ACCESS_FINE_LOCATION)
             != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             permLauncher.launch(android.Manifest.permission.ACCESS_FINE_LOCATION)
         }
+        if (android.os.Build.VERSION.SDK_INT >= 33 &&
+            androidx.core.content.ContextCompat.checkSelfPermission(ctx, android.Manifest.permission.POST_NOTIFICATIONS)
+            != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            notifPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
+        // Register this device's FCM token for push (no-op unless Firebase is configured).
+        Fcm.registerCurrentToken(ctx, session)
     }
     // Live GPS: while Available, post the REAL device location every few seconds so the Command Centre map moves.
     LaunchedEffect(agent?.id, online) {

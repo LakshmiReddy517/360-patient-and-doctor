@@ -35,13 +35,16 @@ public class NotificationService {
     private final NotificationRepository notificationRepository;
     private final NotificationPreferenceRepository preferenceRepository;
     private final com.pcare.live.LiveHub liveHub;
+    private final PushService pushService;
 
     public NotificationService(NotificationRepository notificationRepository,
                                NotificationPreferenceRepository preferenceRepository,
-                               com.pcare.live.LiveHub liveHub) {
+                               com.pcare.live.LiveHub liveHub,
+                               PushService pushService) {
         this.notificationRepository = notificationRepository;
         this.preferenceRepository = preferenceRepository;
         this.liveHub = liveHub;
+        this.pushService = pushService;
     }
 
     @Transactional
@@ -75,6 +78,11 @@ public class NotificationService {
                 "subject", result.getSubject() == null ? "" : result.getSubject(),
                 "recipient", result.getRecipientName() == null ? "" : result.getRecipientName(),
                 "status", result.getStatus().name()));
+        // Fire a real device push (no-op unless Firebase is configured + the recipient has a device token).
+        try {
+            pushService.pushToRecipient(req.recipientUserId(),
+                    req.subject() != null ? req.subject() : "360 Patient Care", req.body(), req.caseId());
+        } catch (Exception ignored) { }
         return result;
     }
 

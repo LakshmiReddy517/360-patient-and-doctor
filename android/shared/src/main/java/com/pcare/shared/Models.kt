@@ -76,6 +76,10 @@ data class LocationRequest(val latitude: Double, val longitude: Double)
 data class AssignmentStatusRequest(val status: String, val note: String? = null)
 data class VerifyOtpRequest(val otp: String)
 
+// ---- Push notifications (FCM) ----
+data class DeviceTokenRequest(val token: String, val platform: String = "android")
+data class DeviceTokenResponse(val registered: Boolean = false, val userId: Long? = null)
+
 // ---- Agent earnings (blueprint point 22) ----
 data class EarningItem(
     val caseNumber: String?,

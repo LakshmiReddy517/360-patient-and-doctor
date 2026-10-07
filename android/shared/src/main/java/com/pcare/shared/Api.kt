@@ -46,6 +46,10 @@ interface ApiService {
     @GET("api/v1/auth/me")
     suspend fun me(): User
 
+    // Register this device's FCM token for push notifications
+    @POST("api/v1/device-tokens")
+    suspend fun registerDeviceToken(@Body body: DeviceTokenRequest): DeviceTokenResponse
+
     // Patient
     @GET("api/v1/packages")
     suspend fun packages(): List<ServicePackage>
