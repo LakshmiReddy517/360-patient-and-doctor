@@ -79,9 +79,10 @@ button { font-family: inherit; cursor: pointer; }
 .card-pad > h3, .card > .card-pad h3 { font-size: 15.5px; letter-spacing: -.02em; }
 
 /* ---------- Loading skeleton ---------- */
-.skel { position: relative; overflow: hidden; background: #efe9dd; border-radius: 8px; }
-.skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,255,255,.65), transparent); animation: shimmer 1.3s infinite; }
+.skel { position: relative; overflow: hidden; background: linear-gradient(180deg,#efe7d7,#e8dfcd); border-radius: 9px; animation: skpulse 2.2s ease-in-out infinite; }
+.skel::after { content: ''; position: absolute; inset: 0; transform: translateX(-100%); background: linear-gradient(90deg, transparent, rgba(255,252,244,.85), transparent); animation: shimmer 1.6s infinite; }
 @keyframes shimmer { 100% { transform: translateX(100%); } }
+@keyframes skpulse { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
 
 /* ---------- Badges ---------- */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3.5px 11px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: .02em; line-height: 1.5; white-space: nowrap; }

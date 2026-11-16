@@ -37,15 +37,21 @@ export default function AgentsPage() {
 
   if (loading) return <div className="spinner">Loading workforce…</div>;
 
+  // Derive consistent counts from the live roster (an on-job agent is, by definition, online).
+  const offline = agents.filter((a) => a.status === 'OFFLINE').length;
+  const available = agents.filter((a) => a.status === 'AVAILABLE').length;
+  const onJob = agents.filter((a) => a.status && !['AVAILABLE', 'OFFLINE'].includes(a.status)).length;
+  const online = agents.length - offline;
+
   return (
     <div>
       <div className="page-head"><h2>Care Agents</h2></div>
 
       <div className="stat-grid" style={{ marginBottom: 20 }}>
-        <div className="card stat"><div className="label">Available</div><div className="value primary">{stats?.available}</div></div>
-        <div className="card stat"><div className="label">Online</div><div className="value">{stats?.online}</div></div>
-        <div className="card stat"><div className="label">On Job</div><div className="value">{stats?.onJob}</div></div>
-        <div className="card stat"><div className="label">Offline</div><div className="value">{stats?.offline}</div></div>
+        <div className="card stat"><div className="label">Available</div><div className="value primary">{available}</div></div>
+        <div className="card stat"><div className="label">Online</div><div className="value">{online}</div></div>
+        <div className="card stat"><div className="label">On Job</div><div className="value">{onJob}</div></div>
+        <div className="card stat"><div className="label">Offline</div><div className="value">{offline}</div></div>
       </div>
 
       <div className="card">

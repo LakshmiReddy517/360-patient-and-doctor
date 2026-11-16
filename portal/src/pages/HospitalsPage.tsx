@@ -40,12 +40,14 @@ export default function HospitalsPage() {
           <div className="card-pad" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => toggle(h)}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 15 }}>{h.name} {h.partner && <span className="badge badge-open" style={{ fontSize: 10 }}>PARTNER</span>} {h.emergencyAvailable && <span className="badge badge-emergency" style={{ fontSize: 10 }}>24×7 ER</span>}</div>
-              <div className="muted" style={{ fontSize: 12 }}>{h.city} · {h.phone} · {h.opdTiming}</div>
-              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>{[...h.departments].map((d) => <span key={d} className="badge badge-normal" style={{ fontSize: 10 }}>{d}</span>)}</div>
+              <div className="muted" style={{ fontSize: 12 }}>{[h.city, h.phone, h.opdTiming].filter(Boolean).join(' · ')}</div>
+              <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginTop: 6 }}>{[...h.departments].length ? [...h.departments].map((d) => <span key={d} className="badge badge-normal" style={{ fontSize: 10 }}>{d}</span>) : <span className="muted" style={{ fontSize: 11 }}>Departments not listed</span>}</div>
             </div>
             <div style={{ textAlign: 'right' }}>
-              <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: 'var(--primary)' }}>{h.availableBeds}/{h.totalBeds}</div>
-              <div className="muted" style={{ fontSize: 11 }}>beds available</div>
+              {h.totalBeds > 0 ? (
+                <div className="mono" style={{ fontSize: 20, fontWeight: 700, color: h.availableBeds === 0 ? '#c0392b' : h.availableBeds <= 2 ? '#d9813f' : 'var(--primary)' }}>{h.availableBeds}/{h.totalBeds}</div>
+              ) : <div className="mono" style={{ fontSize: 18, fontWeight: 700, color: '#9aa39f' }}>—</div>}
+              <div className="muted" style={{ fontSize: 11 }}>{h.totalBeds > 0 ? (h.availableBeds === 0 ? 'no beds free' : 'beds available') : 'no bed data'}</div>
             </div>
           </div>
           {expanded === h.id && (

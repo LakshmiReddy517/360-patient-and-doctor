@@ -20,6 +20,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -43,10 +47,10 @@ import kotlinx.coroutines.launch
 private val Teal = Color(0xFF0F766E)
 private val TealDark = Color(0xFF0B5D56)
 private val TealLite = Color(0xFF15938A)
-private val Bg = Color(0xFFF1F4F9)
-private val CardBorder = Color(0xFFEAEEF5)
-private val Ink = Color(0xFF14203A)
-private val Muted = Color(0xFF667085)
+private val Bg = Color(0xFFF6F2EA)        // warm cream (matches portal)
+private val CardBorder = Color(0xFFE9E2D5) // warm paper border
+private val Ink = Color(0xFF223733)       // dark green ink
+private val Muted = Color(0xFF6B7B76)     // warm muted
 private val Danger = Color(0xFFDC2626)
 private val Amber = Color(0xFFD97706)
 private val GreenC = Color(0xFF16A34A)
@@ -63,7 +67,7 @@ class MainActivity : ComponentActivity() {
         val session = Session(this)
         setContent {
             MaterialTheme(
-                colorScheme = lightColorScheme(primary = Teal, onPrimary = Color.White, background = Bg, surface = Color.White, onSurface = Ink)
+                colorScheme = lightColorScheme(primary = Teal, onPrimary = Color.White, background = Bg, surface = Color(0xFFFDFBF5), onSurface = Ink)
             ) {
                 Surface(Modifier.fillMaxSize(), color = Bg) {
                     var showSplash by remember { mutableStateOf(true) }
@@ -85,31 +89,33 @@ class MainActivity : ComponentActivity() {
 // ---------------- SPLASH ----------------
 @Composable
 private fun SplashScreen() {
-    val inf = rememberInfiniteTransition(label = "splash")
-    val scale by inf.animateFloat(1f, 1.14f, infiniteRepeatable(tween(950), RepeatMode.Reverse), label = "scale")
-    val ring by inf.animateFloat(0.45f, 0f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ring")
-    val ringScale by inf.animateFloat(1f, 1.8f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ringScale")
-    Box(Modifier.fillMaxSize().background(HeaderBrush), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(contentAlignment = Alignment.Center) {
-                Surface(shape = CircleShape, color = Color.White.copy(alpha = ring),
-                    modifier = Modifier.size(120.dp).scale(ringScale)) {}
-                Surface(shape = CircleShape, color = Color.White.copy(alpha = 0.14f),
-                    border = BorderStroke(1.5.dp, Color.White.copy(alpha = 0.40f)),
-                    modifier = Modifier.size(108.dp).scale(scale)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.size(46.dp)) }
-                }
+    Box(Modifier.fillMaxSize().background(Bg)) {
+        Image(painterResource(R.drawable.splash_art), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        // cream watercolour veil so the centred content reads cleanly
+        Box(Modifier.fillMaxSize().background(Color(0xD8F6F1E8)))
+        Column(
+            Modifier.fillMaxSize().padding(34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(shape = CircleShape, color = Teal.copy(alpha = 0.12f)) {
+                Icon(Icons.Filled.Favorite, null, tint = Teal, modifier = Modifier.padding(20.dp).size(40.dp))
             }
-            Spacer(Modifier.height(28.dp))
-            Text("360° Patient Care", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(7.dp))
-            Text("CARE · TRANSPORT · COORDINATION", color = Color.White.copy(alpha = 0.82f), fontSize = 10.5.sp, letterSpacing = 2.sp)
-            Spacer(Modifier.height(30.dp))
-            LinearProgressIndicator(color = Color.White, trackColor = Color.White.copy(alpha = 0.22f),
-                modifier = Modifier.width(180.dp).height(4.dp).clip(RoundedCornerShape(50)))
+            Spacer(Modifier.height(20.dp))
+            Text("360° Patient Care", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Spacer(Modifier.height(9.dp))
+            Box(Modifier.width(140.dp).height(2.dp).clip(RoundedCornerShape(50)).background(TealLite))
+            Spacer(Modifier.height(22.dp))
+            Text("“Where compassion meets coordination.”",
+                fontSize = 15.sp, color = Muted, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+            Text("PATIENT CARE MANAGEMENT SYSTEM", fontSize = 10.sp, letterSpacing = 2.5.sp, color = Muted.copy(alpha = 0.85f))
+            Spacer(Modifier.height(18.dp))
+            LinearProgressIndicator(color = Teal, trackColor = Teal.copy(alpha = 0.15f),
+                modifier = Modifier.width(170.dp).height(3.dp).clip(RoundedCornerShape(50)))
         }
-        Text("Developed by pvalr", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp))
+        Text("Developed by pvalr", color = Muted.copy(alpha = 0.7f), fontSize = 11.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp))
     }
 }
 
@@ -139,14 +145,16 @@ private fun LoginScreen(session: Session, onLoggedIn: () -> Unit) {
     val panPicker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { panUri = it }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().height(248.dp).clip(RoundedCornerShape(bottomStart = 36.dp, bottomEnd = 36.dp)).background(HeaderBrush), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.16f)) {
+        Box(Modifier.fillMaxWidth().height(248.dp).clip(RoundedCornerShape(bottomStart = 36.dp, bottomEnd = 36.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.72f), TealDark.copy(alpha = 0.92f)))))
+            Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.18f)) {
                     Icon(Icons.Filled.Favorite, null, tint = Color.White, modifier = Modifier.padding(16.dp).size(34.dp))
                 }
                 Spacer(Modifier.height(14.dp))
                 Text("360° Patient Care", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text("Care, transport & coordination", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
+                Text("Care, transport & coordination", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
             }
         }
         Column(Modifier.padding(24.dp)) {
@@ -292,7 +300,9 @@ private fun MainShell(session: Session, onLogout: () -> Unit) {
 
 @Composable
 private fun GradientHeader(title: String, subtitle: String, initial: String) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)).background(HeaderBrush)) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))) {
+        Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
         Row(Modifier.fillMaxWidth().padding(20.dp, 26.dp, 20.dp, 28.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(contentAlignment = Alignment.Center) {
                 Surface(shape = RoundedCornerShape(50), color = Color.White.copy(alpha = 0.14f), border = androidx.compose.foundation.BorderStroke(1.5.dp, Color.White.copy(alpha = 0.35f)), modifier = Modifier.size(46.dp)) {}
@@ -515,7 +525,9 @@ private fun CaseDetailScreen(session: Session, caseId: Long, onBack: () -> Unit)
     if (tracking) { TrackAmbulanceScreen(session, caseId) { tracking = false }; return }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text(d?.caseFile?.caseNumber ?: "Case", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Case detail", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
@@ -693,7 +705,9 @@ private fun TrackAmbulanceScreen(session: Session, caseId: Long, onBack: () -> U
     }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Track my ambulance", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Live location", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
@@ -767,7 +781,9 @@ private fun NearbyScreen(session: Session, onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Nearby care", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Hospitals & ambulances around you", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
@@ -835,7 +851,9 @@ private fun RecordsScreen(session: Session, onBack: (() -> Unit)? = null) {
         loading = false
     }
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(if (onBack != null) 12.dp else 20.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (onBack != null) IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Medical records", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Appointments, medicines & documents", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
@@ -890,7 +908,9 @@ private fun SupportScreen(onBack: () -> Unit) {
     }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Support", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("We're here to help, 24×7", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
@@ -977,7 +997,9 @@ private fun NotificationPreferencesScreen(session: Session, onBack: () -> Unit) 
     LaunchedEffect(Unit) { reload() }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(HeaderBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Teal.copy(alpha = 0.80f), TealDark.copy(alpha = 0.94f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Notification preferences", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Updates you want to receive", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }

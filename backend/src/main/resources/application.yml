@@ -47,6 +47,16 @@ app:
     # Leave blank to disable push (notifications are still recorded). Override via env FIREBASE_CREDENTIALS.
     credentials-path: ${FIREBASE_CREDENTIALS:}
 
+# Real-time SMS / OTP delivery via MSG91 (India). Leave blank to keep SMS DISABLED (OTPs are still
+# generated & verified; the code is logged in dev). Set the env vars to deliver real SMS.
+#   MSG91_AUTHKEY       — your MSG91 auth key
+#   MSG91_OTP_TEMPLATE  — an approved DLT OTP template id (variable name = otp)
+msg91:
+  authkey: ${MSG91_AUTHKEY:}
+  otp-template-id: ${MSG91_OTP_TEMPLATE:}
+  var-name: ${MSG91_VAR_NAME:otp}
+  country-code: ${MSG91_COUNTRY_CODE:91}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
+import HeartbeatMonitor from './HeartbeatMonitor';
+import CommandPalette from './CommandPalette';
 
 /* Icons (filled glyphs matching the design) */
 const I = {
@@ -24,7 +27,7 @@ const NAV: Item[] = [
   { to: '/ambulances', label: 'Transport & Ambulance', icon: I.transport, sub: [['/ambulances', 'Ambulance Fleet'], ['/live', 'Live Operations']] },
   { to: '/agents', label: 'Agents & Staff', icon: I.agents, sub: [['/agents', 'Agents & Dispatch'], ['/doctors', 'Doctors']] },
   { to: '/caretakers', label: 'Care Coordination', icon: I.care, sub: [['/caretakers', 'Caretakers'], ['/accommodations', 'Accommodation'], ['/inventory', 'Equipment Inventory'], ['/hospitals', 'Hospitals']] },
-  { to: '/cases', label: 'Appointments', icon: I.appts },
+  { to: '/cases', label: 'Cases', icon: I.appts },
   { to: '/reports', label: 'Reports & Analytics', icon: I.reports },
   { to: '/notifications', label: 'Settings', icon: I.settings, sub: [['/notifications', 'Notifications'], ['/pricing', 'Packages & Pricing'], ['/cash', 'Cash Reconciliation'], ['/settlements', 'Settlements'], ['/complaints', 'Complaints'], ['/incidents', 'Incidents']] },
 ];
@@ -42,6 +45,17 @@ export default function AppLayout() {
   const navigate = useNavigate();
   const name = user?.fullName || user?.username || 'User';
   const initials = name.split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [userMenu, setUserMenu] = useState(false);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); setUserMenu(false); setPaletteOpen((o) => !o); }
+      else if (e.key === 'Escape') { setUserMenu(false); setPaletteOpen(false); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   return (
     <div className="ax-shell">
@@ -59,16 +73,20 @@ export default function AppLayout() {
               {n.sub && (
                 <div className="ax-submenu">
                   <div className="ax-submenu-head">{n.label}</div>
-                  {n.sub.map(([to, label]) => (
-                    <NavLink key={to} to={to} end className={({ isActive }) => (isActive ? 'active' : '')}>{label}</NavLink>
-                  ))}
+                  <div className="ax-submenu-items">
+                    {n.sub.map(([to, label]) => (
+                      <NavLink key={to} to={to} end className={({ isActive }) => (isActive ? 'active' : '')}>
+                        <span>{label}</span>
+                      </NavLink>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
           ))}
         </nav>
         <div className="ax-side-spacer" />
-        <div className="ax-side-art" />
+        <HeartbeatMonitor />
         <div className="ax-side-foot" onClick={() => navigate('/live')}>
           <span className="pin">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 21s-6-5.2-6-10a6 6 0 1 1 12 0c0 4.8-6 10-6 10Z" /><circle cx="12" cy="11" r="2" /></svg>
@@ -80,19 +98,43 @@ export default function AppLayout() {
 
       <div className="ax-main">
         <header className="ax-top">
-          <div className="ax-search">
+          <button type="button" className="ax-search" onClick={() => setPaletteOpen(true)}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="m20 20-3-3" /></svg>
-            <input placeholder="Search patients, requests, agents, locations..." />
-          </div>
+            <span className="ax-search-ph">Search patients, requests, agents, locations…</span>
+            <kbd className="ax-search-kbd">Ctrl K</kbd>
+          </button>
           <div className="ax-top-right">
             <div className="ax-bell">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 0 1-3.46 0" /></svg>
               <span className="dot" />
             </div>
-            <div className="ax-user" onClick={logout} title="Click to log out">
-              <div className="av">{initials}</div>
-              <div className="nm">{name}</div>
-              <svg className="cv" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
+            <div className="ax-userwrap">
+              <div className="ax-user" onClick={() => { setPaletteOpen(false); setUserMenu((o) => !o); }} title="Account">
+                <div className="av">{initials}</div>
+                <div className="nm">{name}</div>
+                <svg className="cv" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ transform: userMenu ? 'rotate(180deg)' : 'none', transition: 'transform .15s' }}><path d="m6 9 6 6 6-6" /></svg>
+              </div>
+              {userMenu && (
+                <>
+                  <div className="ax-menu-overlay" onClick={() => setUserMenu(false)} />
+                  <div className="ax-user-menu">
+                    <div className="um-head">
+                      <div className="av">{initials}</div>
+                      <div className="um-id"><b>{name}</b><span>{(user?.roles || []).join(', ') || 'User'}</span></div>
+                    </div>
+                    <button className="um-item" onClick={() => { setUserMenu(false); navigate('/'); }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11.5 12 4l9 7.5M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9" /></svg>Dashboard
+                    </button>
+                    <button className="um-item" onClick={() => { setUserMenu(false); navigate('/notifications'); }}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm8-3a8 8 0 0 0-.1-1.3l2-1.5-2-3.5-2.3 1a7 7 0 0 0-2.3-1.3L14 2h-4l-.3 2.1a7 7 0 0 0-2.3 1.3l-2.3-1-2 3.5 2 1.5A8 8 0 0 0 5 12c0 .4 0 .9.1 1.3l-2 1.5 2 3.5 2.3-1a7 7 0 0 0 2.3 1.3L10 22h4l.3-2.1a7 7 0 0 0 2.3-1.3l2.3 1 2-3.5-2-1.5c.1-.4.1-.9.1-1.3Z" /></svg>Settings &amp; preferences
+                    </button>
+                    <div className="um-sep" />
+                    <button className="um-item um-logout" onClick={logout}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" /></svg>Log out
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
@@ -100,6 +142,8 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>
   );
 }

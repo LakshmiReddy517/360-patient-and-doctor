@@ -69,7 +69,7 @@ export default function CasesPage() {
                   <td className="mono">{c.caseNumber}</td>
                   <td>{c.patientName}</td>
                   <td className="muted">{c.patientMobile || '—'}</td>
-                  <td className="muted">{c.title || '—'}</td>
+                  <td className="muted">{c.title ? c.title.replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase()) : '—'}</td>
                   <td><PriorityBadge priority={c.priority} emergency={c.emergency} /></td>
                   <td><StatusBadge status={c.status} /></td>
                   <td><SlaBadge c={c} /></td>
@@ -131,5 +131,5 @@ function CreateCaseModal({ onClose, onCreated }: { onClose: () => void; onCreate
 }
 
 const overlay: React.CSSProperties = {
-  position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 50,
+  position: 'fixed', inset: 0, background: 'rgba(24,38,34,.5)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 50,
 };

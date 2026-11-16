@@ -112,7 +112,7 @@ function CreateRequestModal({ services, onClose, onCreated }: { services: Servic
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 50 }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(24,38,34,.5)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 50 }} onClick={onClose}>
       <div className="card card-pad" style={{ width: 520, maxWidth: '92vw', maxHeight: '90vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginBottom: 16 }}>New Service Request</h3>
         {error && <div className="error-text">{error}</div>}

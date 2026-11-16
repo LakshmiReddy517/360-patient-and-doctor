@@ -18,6 +18,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.draw.scale
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -42,10 +46,10 @@ private val Navy = Color(0xFF0B1220)
 private val Navy2 = Color(0xFF16233B)
 private val Teal = Color(0xFF14B8A6)
 private val TealDeep = Color(0xFF0F766E)
-private val Bg = Color(0xFFF1F4F9)
-private val CardBorder = Color(0xFFEAEEF5)
-private val Ink = Color(0xFF14203A)
-private val Muted = Color(0xFF667085)
+private val Bg = Color(0xFFF6F2EA)        // warm cream (matches portal)
+private val CardBorder = Color(0xFFE9E2D5) // warm paper border
+private val Ink = Color(0xFF223733)       // dark green ink
+private val Muted = Color(0xFF6B7B76)     // warm muted
 private val Green = Color(0xFF16A34A)
 private val Amber = Color(0xFFD97706)
 // Richer diagonal navy gradient for a more premium header.
@@ -61,7 +65,7 @@ class MainActivity : ComponentActivity() {
         val session = Session(this)
         setContent {
             MaterialTheme(
-                colorScheme = lightColorScheme(primary = TealDeep, onPrimary = Color.White, background = Bg, surface = Color.White, onSurface = Ink)
+                colorScheme = lightColorScheme(primary = TealDeep, onPrimary = Color.White, background = Bg, surface = Color(0xFFFDFBF5), onSurface = Ink)
             ) {
                 Surface(Modifier.fillMaxSize(), color = Bg) {
                     var showSplash by remember { mutableStateOf(true) }
@@ -70,7 +74,7 @@ class MainActivity : ComponentActivity() {
                     Crossfade(targetState = showSplash, animationSpec = tween(600), label = "splash") { splash ->
                         when {
                             splash -> SplashScreen()
-                            loggedIn -> JobsScreen(session) { session.clear(); loggedIn = false }
+                            loggedIn -> AgentShell(session) { session.clear(); loggedIn = false }
                             else -> LoginScreen(session) { loggedIn = true }
                         }
                     }
@@ -82,31 +86,32 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun SplashScreen() {
-    val inf = rememberInfiniteTransition(label = "splash")
-    val scale by inf.animateFloat(1f, 1.14f, infiniteRepeatable(tween(950), RepeatMode.Reverse), label = "scale")
-    val ring by inf.animateFloat(0.45f, 0f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ring")
-    val ringScale by inf.animateFloat(1f, 1.8f, infiniteRepeatable(tween(1600), RepeatMode.Restart), label = "ringScale")
-    Box(Modifier.fillMaxSize().background(NavyBrush), contentAlignment = Alignment.Center) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(contentAlignment = Alignment.Center) {
-                Surface(shape = CircleShape, color = Teal.copy(alpha = ring),
-                    modifier = Modifier.size(120.dp).scale(ringScale)) {}
-                Surface(shape = CircleShape, color = Teal.copy(alpha = 0.18f),
-                    border = BorderStroke(1.5.dp, Teal.copy(alpha = 0.45f)),
-                    modifier = Modifier.size(108.dp).scale(scale)) {
-                    Box(contentAlignment = Alignment.Center) { Icon(Icons.Filled.LocalShipping, null, tint = Teal, modifier = Modifier.size(44.dp)) }
-                }
+    Box(Modifier.fillMaxSize().background(Bg)) {
+        Image(painterResource(R.drawable.splash_art), null, Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.fillMaxSize().background(Color(0xD8F6F1E8)))
+        Column(
+            Modifier.fillMaxSize().padding(34.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Surface(shape = CircleShape, color = TealDeep.copy(alpha = 0.12f)) {
+                Icon(Icons.Filled.LocalShipping, null, tint = TealDeep, modifier = Modifier.padding(20.dp).size(40.dp))
             }
-            Spacer(Modifier.height(28.dp))
-            Text("360° Care Agent", color = Color.White, fontSize = 27.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(7.dp))
-            Text("FIELD OPERATIONS", color = Color.White.copy(alpha = 0.78f), fontSize = 10.5.sp, letterSpacing = 3.sp)
-            Spacer(Modifier.height(30.dp))
-            LinearProgressIndicator(color = Teal, trackColor = Color.White.copy(alpha = 0.18f),
-                modifier = Modifier.width(180.dp).height(4.dp).clip(RoundedCornerShape(50)))
+            Spacer(Modifier.height(20.dp))
+            Text("360° Care Agent", fontSize = 30.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Spacer(Modifier.height(9.dp))
+            Box(Modifier.width(140.dp).height(2.dp).clip(RoundedCornerShape(50)).background(TealDeep))
+            Spacer(Modifier.height(22.dp))
+            Text("“Every second counts. Every life matters.”",
+                fontSize = 15.sp, color = Muted, fontStyle = FontStyle.Italic, textAlign = TextAlign.Center)
+            Spacer(Modifier.height(24.dp))
+            Text("FIELD OPERATIONS", fontSize = 10.sp, letterSpacing = 3.sp, color = Muted.copy(alpha = 0.85f))
+            Spacer(Modifier.height(18.dp))
+            LinearProgressIndicator(color = TealDeep, trackColor = TealDeep.copy(alpha = 0.15f),
+                modifier = Modifier.width(170.dp).height(3.dp).clip(RoundedCornerShape(50)))
         }
-        Text("Developed by pvalr", color = Color.White.copy(alpha = 0.55f), fontSize = 11.sp,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 30.dp))
+        Text("Developed by pvalr", color = Muted.copy(alpha = 0.7f), fontSize = 11.sp,
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 28.dp))
     }
 }
 
@@ -123,10 +128,11 @@ private fun LoginScreen(session: Session, onLoggedIn: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Box(
             Modifier.fillMaxWidth().height(248.dp)
-                .clip(RoundedCornerShape(bottomStart = 36.dp, bottomEnd = 36.dp))
-                .background(NavyBrush),
+                .clip(RoundedCornerShape(bottomStart = 36.dp, bottomEnd = 36.dp)),
             contentAlignment = Alignment.Center
         ) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Navy2.copy(alpha = 0.86f), Navy.copy(alpha = 0.95f)))))
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Surface(shape = RoundedCornerShape(50), color = Teal.copy(alpha = 0.18f)) {
                     Icon(Icons.Filled.LocalShipping, null, tint = Teal, modifier = Modifier.padding(16.dp).size(34.dp))
@@ -180,7 +186,7 @@ private fun LoginScreen(session: Session, onLoggedIn: () -> Unit) {
 }
 
 @Composable
-private fun JobsScreen(session: Session, onLogout: () -> Unit) {
+private fun AgentShell(session: Session, onLogout: () -> Unit) {
     val scope = rememberCoroutineScope()
     val api = remember { ApiClient.service(session) }
     var agent by remember { mutableStateOf<AgentDto?>(null) }
@@ -189,6 +195,7 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
     var error by remember { mutableStateOf<String?>(null) }
     var loading by remember { mutableStateOf(true) }
     var navCase by remember { mutableStateOf<Long?>(null) }
+    var tab by remember { mutableStateOf(0) }
 
     fun refresh() {
         scope.launch {
@@ -224,7 +231,7 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
     // Back press on the jobs home asks before logging out & closing the app.
     val ctx = androidx.compose.ui.platform.LocalContext.current
     var showExit by remember { mutableStateOf(false) }
-    androidx.activity.compose.BackHandler { showExit = true }
+    androidx.activity.compose.BackHandler { if (tab != 0) tab = 0 else showExit = true }
     if (showExit) {
         AlertDialog(
             onDismissRequest = { showExit = false },
@@ -266,66 +273,160 @@ private fun JobsScreen(session: Session, onLogout: () -> Unit) {
         }
     }
 
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)).background(NavyBrush)) {
-            Column(Modifier.padding(20.dp, 24.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(shape = RoundedCornerShape(50), color = Teal.copy(alpha = 0.20f)) {
-                        Text((agent?.fullName ?: "A").take(1).uppercase(), color = Teal, fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp, modifier = Modifier.padding(14.dp, 10.dp))
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(agent?.fullName ?: session.userName ?: "Agent", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Surface(shape = RoundedCornerShape(50), color = if (online) Green else Muted, modifier = Modifier.size(8.dp)) {}
-                            Spacer(Modifier.width(6.dp))
-                            Text(agent?.status?.replace('_', ' ') ?: "—", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                        }
-                    }
-                    IconButton(onClick = onLogout) { Icon(Icons.Filled.Logout, "Logout", tint = Color.White) }
-                }
-                Spacer(Modifier.height(16.dp))
-                agent?.let { a ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        DutyButton("Available", Icons.Filled.CheckCircle, online, Modifier.weight(1f)) {
-                            scope.launch { try { api.setAgentStatus(a.id, StatusRequest("AVAILABLE")); refresh() } catch (_: Exception) {} }
-                        }
-                        DutyButton("Offline", Icons.Filled.DoNotDisturbOn, !online, Modifier.weight(1f)) {
-                            scope.launch { try { api.setAgentStatus(a.id, StatusRequest("OFFLINE")); refresh() } catch (_: Exception) {} }
-                        }
-                        DutyButton("GPS", Icons.Filled.MyLocation, false, Modifier.weight(1f)) {
-                            getDeviceLocation(ctx) { la, ln -> scope.launch { try { api.postLocation(a.id, LocationRequest(la, ln)); refresh() } catch (_: Exception) {} } }
-                        }
-                    }
-                }
-            }
-        }
+    val completed = jobs.count { it.status == "COMPLETED" }
+    val active = jobs.count { it.status != "COMPLETED" && it.status != "CANCELLED" }
+    val activeJobs = jobs.filter { it.status != "COMPLETED" && it.status != "CANCELLED" }
 
-        Column(Modifier.padding(16.dp)) {
-            val completed = jobs.count { it.status == "COMPLETED" }
-            val active = jobs.count { it.status != "COMPLETED" && it.status != "CANCELLED" }
-            Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                StatCard("Assigned", "${jobs.size}", TealDeep, Modifier.weight(1f))
-                StatCard("Active", "$active", Amber, Modifier.weight(1f))
-                StatCard("Completed", "$completed", Green, Modifier.weight(1f))
-            }
-            earnings?.let { EarningsCard(it) }
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("My jobs", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink, modifier = Modifier.weight(1f))
-                Surface(shape = RoundedCornerShape(50), color = TealDeep.copy(alpha = 0.12f)) {
-                    Text("${jobs.size}", color = TealDeep, fontWeight = FontWeight.Bold, fontSize = 12.sp, modifier = Modifier.padding(10.dp, 4.dp))
+    Scaffold(
+        containerColor = Bg,
+        bottomBar = {
+            NavigationBar(containerColor = Color.White) {
+                val items = listOf(
+                    Pair("Home", Icons.Filled.Home),
+                    Pair("Jobs", Icons.Filled.Assignment),
+                    Pair("Earnings", Icons.Filled.AccountBalanceWallet),
+                    Pair("Profile", Icons.Filled.AccountCircle),
+                )
+                items.forEachIndexed { i, item ->
+                    NavigationBarItem(
+                        selected = tab == i,
+                        onClick = { tab = i },
+                        icon = { Icon(item.second, item.first) },
+                        label = { Text(item.first, fontSize = 11.sp) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = TealDeep, selectedTextColor = TealDeep,
+                            indicatorColor = TealDeep.copy(alpha = 0.14f), unselectedIconColor = Muted, unselectedTextColor = Muted
+                        )
+                    )
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            error?.let { Text(it, color = Color(0xFFDC2626), fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
-            if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = TealDeep) }
-            if (!loading && jobs.isEmpty()) EmptyJobs()
-            jobs.forEach { job -> JobCard(job, api, scope, onNavigate = { navCase = job.caseId }) { refresh() } }
-            Spacer(Modifier.height(18.dp))
-            Text("Developed by pvalr", color = Muted, fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
-            Spacer(Modifier.height(12.dp))
         }
+    ) { pad ->
+        Column(Modifier.fillMaxSize().padding(pad)) {
+            when (tab) {
+                0 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    AgentDutyHeader(agent, online, session, showToggles = true,
+                        onAvailable = { agent?.let { a -> scope.launch { try { api.setAgentStatus(a.id, StatusRequest("AVAILABLE")); refresh() } catch (_: Exception) {} } } },
+                        onOffline = { agent?.let { a -> scope.launch { try { api.setAgentStatus(a.id, StatusRequest("OFFLINE")); refresh() } catch (_: Exception) {} } } },
+                        onGps = { agent?.let { a -> getDeviceLocation(ctx) { la, ln -> scope.launch { try { api.postLocation(a.id, LocationRequest(la, ln)); refresh() } catch (_: Exception) {} } } } })
+                    Column(Modifier.padding(16.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StatCard("Assigned", "${jobs.size}", TealDeep, Modifier.weight(1f))
+                            StatCard("Active", "$active", Amber, Modifier.weight(1f))
+                            StatCard("Completed", "$completed", Green, Modifier.weight(1f))
+                        }
+                        Text("Active now", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Spacer(Modifier.height(12.dp))
+                        error?.let { Text(it, color = Color(0xFFDC2626), fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
+                        if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = TealDeep) }
+                        if (!loading && activeJobs.isEmpty()) EmptyJobs()
+                        activeJobs.forEach { job -> JobCard(job, api, scope, onNavigate = { navCase = job.caseId }) { refresh() } }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+                1 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    NavyTitleBar("My Jobs", "${jobs.size} total · $active active")
+                    Column(Modifier.padding(16.dp)) {
+                        error?.let { Text(it, color = Color(0xFFDC2626), fontSize = 12.sp); Spacer(Modifier.height(8.dp)) }
+                        if (loading) Box(Modifier.fillMaxWidth().padding(20.dp), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = TealDeep) }
+                        if (!loading && jobs.isEmpty()) EmptyJobs()
+                        jobs.forEach { job -> JobCard(job, api, scope, onNavigate = { navCase = job.caseId }) { refresh() } }
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+                2 -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    NavyTitleBar("Earnings", "Settlement summary")
+                    Column(Modifier.padding(16.dp)) {
+                        Row(Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            StatCard("Trips done", "$completed", TealDeep, Modifier.weight(1f))
+                            StatCard("Active", "$active", Amber, Modifier.weight(1f))
+                        }
+                        val e = earnings
+                        if (e != null) EarningsCard(e) else Text("No earnings yet. Complete a trip to see your settlement details here.", color = Muted, fontSize = 13.sp)
+                        Spacer(Modifier.height(16.dp))
+                    }
+                }
+                else -> Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                    AgentDutyHeader(agent, online, session, showToggles = false, onAvailable = {}, onOffline = {}, onGps = {})
+                    Column(Modifier.padding(16.dp)) {
+                        Text("Profile", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Ink)
+                        Spacer(Modifier.height(8.dp))
+                        ProfileRow("Agent", agent?.fullName ?: session.userName ?: "—")
+                        ProfileRow("Status", agent?.status?.replace('_', ' ') ?: "—")
+                        ProfileRow("Active assignments", "${agent?.activeAssignments ?: 0}")
+                        ProfileRow("Skills", agent?.skills?.joinToString(", ")?.ifBlank { "—" } ?: "—")
+                        ProfileRow("Languages", agent?.languages?.joinToString(", ")?.ifBlank { "—" } ?: "—")
+                        Spacer(Modifier.height(18.dp))
+                        Button(onClick = onLogout, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626)),
+                            modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp)) {
+                            Icon(Icons.Filled.Logout, null); Spacer(Modifier.width(8.dp)); Text("Log out", fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text("Developed by pvalr", color = Muted, fontSize = 11.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(12.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AgentDutyHeader(
+    agent: AgentDto?, online: Boolean, session: Session, showToggles: Boolean,
+    onAvailable: () -> Unit, onOffline: () -> Unit, onGps: () -> Unit
+) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp))) {
+        Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Navy2.copy(alpha = 0.86f), Navy.copy(alpha = 0.95f)))))
+        Column(Modifier.padding(20.dp, 24.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Surface(shape = RoundedCornerShape(50), color = Teal.copy(alpha = 0.20f)) {
+                    Text((agent?.fullName ?: "A").take(1).uppercase(), color = Teal, fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp, modifier = Modifier.padding(14.dp, 10.dp))
+                }
+                Spacer(Modifier.width(12.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(agent?.fullName ?: session.userName ?: "Agent", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Surface(shape = RoundedCornerShape(50), color = if (online) Green else Muted, modifier = Modifier.size(8.dp)) {}
+                        Spacer(Modifier.width(6.dp))
+                        Text(agent?.status?.replace('_', ' ') ?: "—", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                    }
+                }
+            }
+            if (showToggles) {
+                Spacer(Modifier.height(16.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    DutyButton("Available", Icons.Filled.CheckCircle, online, Modifier.weight(1f)) { onAvailable() }
+                    DutyButton("Offline", Icons.Filled.DoNotDisturbOn, !online, Modifier.weight(1f)) { onOffline() }
+                    DutyButton("GPS", Icons.Filled.MyLocation, false, Modifier.weight(1f)) { onGps() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun NavyTitleBar(title: String, sub: String) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 26.dp, bottomEnd = 26.dp))) {
+        Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+        Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Navy2.copy(alpha = 0.86f), Navy.copy(alpha = 0.95f)))))
+        Column(Modifier.padding(20.dp, 26.dp)) {
+            Text(title, color = Color.White, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+            Text(sub, color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun ProfileRow(label: String, value: String) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 9.dp)) {
+        Text(label, color = Muted, fontSize = 12.sp)
+        Spacer(Modifier.height(2.dp))
+        Text(value, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        Spacer(Modifier.height(9.dp))
+        Box(Modifier.fillMaxWidth().height(1.dp).background(CardBorder))
     }
 }
 
@@ -501,7 +602,9 @@ private fun AgentRouteScreen(session: Session, agentId: Long, caseId: Long, onBa
     }
 
     Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp)).background(NavyBrush)) {
+        Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))) {
+            Image(painterResource(R.drawable.hero_art), null, Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+            Box(Modifier.matchParentSize().background(Brush.verticalGradient(listOf(Navy2.copy(alpha = 0.86f), Navy.copy(alpha = 0.95f)))))
             Row(Modifier.fillMaxWidth().padding(12.dp, 20.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) { Icon(Icons.Filled.ArrowBack, "Back", tint = Color.White) }
                 Column { Text("Route to patient", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold); Text("Live navigation", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }

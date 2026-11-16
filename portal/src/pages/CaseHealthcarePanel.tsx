@@ -58,7 +58,7 @@ export default function CaseHealthcarePanel({ caseId }: { caseId: number }) {
   );
 }
 
-const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 50 };
+const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(24,38,34,.5)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 50 };
 
 function BookModal({ caseId, onClose, onBooked }: { caseId: number; onClose: () => void; onBooked: () => void }) {
   const [doctors, setDoctors] = useState<Doctor[]>([]);

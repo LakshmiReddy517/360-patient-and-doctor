@@ -46,8 +46,8 @@ export default function PricingPage() {
               <tbody>
                 {rates.map((rc) => (
                   <tr key={rc.id}>
-                    <td style={{ fontWeight: 600 }}>{rc.label}<div className="muted" style={{ fontWeight: 400, fontSize: 11 }}>{rc.serviceType}</div></td>
-                    <td className="muted">{rc.unit}</td>
+                    <td style={{ fontWeight: 600 }}>{rc.label}<div className="muted" style={{ fontWeight: 400, fontSize: 11 }}>{(rc.serviceType || '').replace(/_/g, ' ').toLowerCase().replace(/\b\w/g, (m) => m.toUpperCase())}</div></td>
+                    <td className="muted">{(() => { const s = (rc.unit || '').toLowerCase().replace(/_/g, ' '); return /^per /.test(s) ? s : s ? `per ${s}` : '—'; })()}</td>
                     <td>
                       <input className="input" style={{ width: 110, padding: '6px 8px' }} type="number"
                              value={editing[rc.id] ?? rc.unitRate}

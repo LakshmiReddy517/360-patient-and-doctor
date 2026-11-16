@@ -116,7 +116,7 @@ function CreateModal({ payeeTypes, onClose, onDone }: { payeeTypes: PayeeType[];
     catch (e) { setError(apiErrorMessage(e)); } finally { setSaving(false); }
   }
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 50 }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(24,38,34,.5)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 50 }} onClick={onClose}>
       <div className="card card-pad" style={{ width: 440, maxWidth: '92vw' }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginBottom: 16 }}>New Settlement</h3>
         <div className="muted" style={{ fontSize: 12, marginBottom: 12 }}>Bundles all unsettled earnings for the payee into one batch.</div>

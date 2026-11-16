@@ -34,15 +34,18 @@ public class AssignmentService {
     private final com.pcare.settlement.service.SettlementService settlementService;
 
     private final com.pcare.notification.service.PushService pushService;
+    private final com.pcare.notification.service.SmsService smsService;
 
     public AssignmentService(AssignmentRepository assignmentRepository, AgentRepository agentRepository,
                              CaseService caseService, com.pcare.settlement.service.SettlementService settlementService,
-                             com.pcare.notification.service.PushService pushService) {
+                             com.pcare.notification.service.PushService pushService,
+                             com.pcare.notification.service.SmsService smsService) {
         this.assignmentRepository = assignmentRepository;
         this.agentRepository = agentRepository;
         this.caseService = caseService;
         this.settlementService = settlementService;
         this.pushService = pushService;
+        this.smsService = smsService;
     }
 
     @Transactional
@@ -100,6 +103,13 @@ public class AssignmentService {
                 syncAgent(a.getAgentId(), AgentStatus.EN_ROUTE);
                 caseService.addEvent(a.getCaseId(), CaseEventType.PICKUP_STARTED,
                         "Agent en route to pickup", "DISPATCH");
+                // Deliver the pickup OTP to the patient's phone so they can verify the agent at pickup.
+                try {
+                    CaseFile cf = caseService.get(a.getCaseId());
+                    smsService.sendOtp(cf.getPatientMobile(), a.getPickupOtp(), "pickup");
+                    caseService.addEvent(a.getCaseId(), CaseEventType.PICKUP_STARTED,
+                            "Pickup OTP sent to patient", "DISPATCH");
+                } catch (Exception ignored) { }
             }
             case ARRIVED_AT_PICKUP -> syncAgent(a.getAgentId(), AgentStatus.ARRIVED);
             case IN_TRANSIT -> syncAgent(a.getAgentId(), AgentStatus.IN_TRANSIT);
@@ -107,6 +117,11 @@ public class AssignmentService {
                 syncAgent(a.getAgentId(), AgentStatus.HOSPITAL_ARRIVED);
                 caseService.addEvent(a.getCaseId(), CaseEventType.HOSPITAL_ARRIVED,
                         "Arrived at hospital", "DISPATCH");
+                // Deliver the handover OTP to the patient to confirm safe handover at the hospital.
+                try {
+                    CaseFile cf = caseService.get(a.getCaseId());
+                    smsService.sendOtp(cf.getPatientMobile(), a.getHandoverOtp(), "handover");
+                } catch (Exception ignored) { }
             }
             default -> { /* no side effects */ }
         }

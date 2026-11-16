@@ -71,7 +71,7 @@ export default function ComplaintsPage() {
   );
 }
 
-const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(15,23,42,.5)', display: 'grid', placeItems: 'center', zIndex: 50 };
+const overlay: React.CSSProperties = { position: 'fixed', inset: 0, background: 'rgba(24,38,34,.5)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)', display: 'grid', placeItems: 'center', zIndex: 50 };
 
 function CreateModal({ priorities, onClose, onDone }: { priorities: Priority[]; onClose: () => void; onDone: () => void }) {
   const [subject, setSubject] = useState('');
