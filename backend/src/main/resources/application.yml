@@ -5,9 +5,11 @@ spring:
   application:
     name: patient-care-backend
   datasource:
-    url: jdbc:mysql://localhost:3306/pcare?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
-    username: pcare
-    password: pcare_pass
+    # Credentials come from environment variables. The defaults are DEV-ONLY (local MySQL);
+    # production MUST set DB_PASSWORD / DB_USERNAME / DB_URL and these defaults are never used.
+    url: ${DB_URL:jdbc:mysql://localhost:3306/pcare?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8}
+    username: ${DB_USERNAME:pcare}
+    password: ${DB_PASSWORD:pcare_pass}
     driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     hibernate:

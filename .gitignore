@@ -30,3 +30,10 @@ prop_extract/
 .DS_Store
 Thumbs.db
 demo/
+
+# Secrets / local env (never commit real values)
+.env
+*.env
+!.env.example
+**/service-account*.json
+**/google-services.json
